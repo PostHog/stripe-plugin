@@ -33,25 +33,23 @@ async function runEveryHour({ global, cache }) {
         cursorParams = `&created[gt]=${cursor}`
     }
     
-    const customersResponse = await fetchWithRetry(`https://api.stripe.com/v1/customers?limit=999999999${cursorParams}`, global.defaultHeaders)
-    const customers = await customersResponse.json()
+    let paginationParam = ''
 
-    console.log('################')
-    console.log('################')
-    console.log('################')
-    console.log('################')
-    console.log(customers.data.length)
-    console.log('################')
-    console.log('################')
-    console.log('################')
-    console.log('################')
-    console.log('################')
-    console.log('################')
+    let customers = []
+
+    let customersJson = { has_more: true }
+
+    while (customersJson.has_more) {
+        const customersResponse = await fetchWithRetry(`https://api.stripe.com/v1/customers?limit=100${cursorParams}${paginationParam}`, global.defaultHeaders)
+        customersJson = await customersResponse.json()
+        const newCustomers = customersJson.data
+        const lastObjectId = newCustomers[newCustomers.length-1].id
+        paginationParam = `&starting_after=${lastObjectId}`
+        customers = [...customers, ...newCustomers]
+    }
 
 
-    let j = 0
-
-    for (let customer of customers.data) {
+    for (let customer of customers) {
         const hasActiveSubscription = customer.subscriptions.data.length > 0
 
 
@@ -82,7 +80,7 @@ async function runEveryHour({ global, cache }) {
             ...properties,
             $set: properties
         })
-        console.log(++j)
+
     }
 
     // SUGGESTION: Hit posthog search API with email domain and add to some user?
@@ -92,6 +90,7 @@ async function runEveryHour({ global, cache }) {
 
 
 }
+
 
 async function fetchWithRetry(url, options = {}, method = 'GET', isRetry = false) {
     try {
@@ -131,7 +130,7 @@ const flattenProperties = (props, nestedChain = []) => {
             delete props[key] 
         } 
         else {
-            if (nestedChain.length > 0) {
+            if (nestedChain.length > 0 && value !== null) {
                 newProps[nestedChain.join(sep) + `${sep}${key}`] = value
             } 
         }
