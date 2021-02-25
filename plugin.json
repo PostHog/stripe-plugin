@@ -6,7 +6,7 @@
     "config": [
         {
             "key": "stripeApiKey",
-            "hint": "This can be a Restricted API key and only needs read access to Customers, Subscriptions, and Invoices.",
+            "hint": "This can be a Restricted API key and only needs read access to Customers, Subscriptions, Plans, Usage Records, and Invoices.",
             "name": "Your Stripe API key",
             "type": "string",
             "order": 1,

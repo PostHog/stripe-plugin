@@ -16,8 +16,10 @@ async function setupPlugin({ config, global, cache }) {
             'Unable to connect to Stripe. Please make sure your API key is correct and that it has the required permissions.'
         )
     }
-    if (jsonRes.data.length) {
-        cache.set('cursor', jsonRes.data[0].created)
+    if (global.useCache) {
+        if (jsonRes.data.length) {
+            cache.set('cursor', jsonRes.data[0].created)
+        }
     }
     
     await runEveryHour({ global, cache })
@@ -28,12 +30,26 @@ async function runEveryHour({ global, cache }) {
     if (global.useCache) {
         const cursorCache = await cache.get('cursor')
         const cursor = cursorCache || '0'
-        cursorParams = `?created[gt]=${cursor}`
+        cursorParams = `&created[gt]=${cursor}`
     }
     
-    const customersResponse = await fetchWithRetry(`https://api.stripe.com/v1/customers${cursorParams}`, global.defaultHeaders)
+    const customersResponse = await fetchWithRetry(`https://api.stripe.com/v1/customers?limit=999999999${cursorParams}`, global.defaultHeaders)
     const customers = await customersResponse.json()
 
+    console.log('################')
+    console.log('################')
+    console.log('################')
+    console.log('################')
+    console.log(customers.data.length)
+    console.log('################')
+    console.log('################')
+    console.log('################')
+    console.log('################')
+    console.log('################')
+    console.log('################')
+
+
+    let j = 0
 
     for (let customer of customers.data) {
         const hasActiveSubscription = customer.subscriptions.data.length > 0
@@ -54,15 +70,19 @@ async function runEveryHour({ global, cache }) {
             for (let i = 0; i < customer.subscriptions.data.length; ++i) {
                 let subscription = customer.subscriptions.data[i]
 
-                console.log(subscription.data[0])
-                properties[`subscription_${i}`] = flattenProperties(subscription.data[0])
+                properties[`subscription${i}`] = subscription
             }
+
+            properties = flattenProperties({...properties})
+
         }
+
 
         posthog.capture('new_stripe_subscription', {
             ...properties,
             $set: properties
         })
+        console.log(++j)
     }
 
     // SUGGESTION: Hit posthog search API with email domain and add to some user?
