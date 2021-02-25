@@ -26,6 +26,19 @@
             "order": 1,
             "default": "Yes",
             "required": false
+        },
+        {
+            "key": "customerIgnoreRegex",
+            "hint": "Specify a Regex for which customers to ignore based on their email (e.g. your own team).",
+            "name": "Customer Ignore Regex",
+            "type": "choice",
+            "choices": [
+                "Yes",
+                "No"
+            ],
+            "order": 1,
+            "default": "Yes",
+            "required": false
         }
     ]
 }

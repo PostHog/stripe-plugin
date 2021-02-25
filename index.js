@@ -1,4 +1,12 @@
 async function setupPlugin({ config, global, cache }) {
+    try {
+        global.customerIgnoreRegex = new RegExp(config.customerIgnoreRegex)
+    } catch {
+        throw new Error(
+            'Invalid regex for field customerIgnoreRegex.'
+        )
+    }
+
     global.defaultHeaders = {
         headers: {
             'Authorization': `Bearer ${config.stripeApiKey}`,
@@ -50,11 +58,15 @@ async function runEveryHour({ global, cache }) {
 
 
     for (let customer of customers) {
+        if (customer.email && global.customerIgnoreRegex.test(customer.email)) {
+            continue
+        }
+
         const hasActiveSubscription = customer.subscriptions.data.length > 0
 
 
         // Stripe ensures properties always exist
-        let properties = {
+        const basicProperties = {
             distinct_id: customer.email || customer.id,
             has_active_subscription: hasActiveSubscription,
             customer_name: customer.name,
@@ -62,6 +74,7 @@ async function runEveryHour({ global, cache }) {
             created: customer.created
         }
 
+        let properties = {...basicProperties}
 
         if (hasActiveSubscription) {
 
@@ -78,7 +91,7 @@ async function runEveryHour({ global, cache }) {
 
         posthog.capture('new_stripe_subscription', {
             ...properties,
-            $set: properties
+            $set: basicProperties
         })
 
     }
