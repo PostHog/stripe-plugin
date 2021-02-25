@@ -1,0 +1,15 @@
+{
+    "email":"hey@posthog.com",
+    "did_you_mean":"",
+    "user":"hey",
+    "domain":"posthog.com",
+    "format_valid":true,
+    "mx_found":true,
+    "smtp_check":true,
+    "catch_all":null,
+    "role":false,
+    "disposable":false,
+    "free":false,
+    "score":0.96,
+    "status": 200
+}

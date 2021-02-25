@@ -1,0 +1,31 @@
+{
+    "name": "mailboxlayer-plugin",
+    "url": "https://github.com/PostHog/mailboxlayer-plugin",
+    "description": "Get email scores for PostHog users using the Mailboxlayer API.",
+    "main": "index.js",
+    "config": [
+        {
+            "key": "stripeApiKey",
+            "hint": "This can be a Restricted API key and only needs read access to Customers, Subscriptions, and Invoices.",
+            "name": "Your Stripe API key",
+            "type": "string",
+            "order": 1,
+            "default": "",
+            "secret": true,
+            "required": true
+        }, 
+        {
+            "key": "useCache",
+            "hint": "Selecting 'Yes' will capture only new customers, while 'No' will always pull and update **all** your Stripe customers.",
+            "name": "Only register new customers?",
+            "type": "choice",
+            "choices": [
+                "Yes",
+                "No"
+            ],
+            "order": 1,
+            "default": "Yes",
+            "required": false
+        }
+    ]
+}
