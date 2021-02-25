@@ -59,6 +59,7 @@ async function runEveryHour({ global, cache }) {
 
     for (let customer of customers) {
         if (customer.email && global.customerIgnoreRegex.test(customer.email)) {
+            console.log('Ignoring ' + customer.email)
             continue
         }
 
