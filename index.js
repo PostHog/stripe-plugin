@@ -59,7 +59,6 @@ async function runEveryHour({ global, cache }) {
 
     for (let customer of customers) {
         if (customer.email && global.customerIgnoreRegex.test(customer.email)) {
-            console.log('Ignoring ' + customer.email)
             continue
         }
 
@@ -87,10 +86,29 @@ async function runEveryHour({ global, cache }) {
 
             properties = flattenProperties({...properties})
 
+
+            const upcomingInvoiceResponse = await fetchWithRetry(`https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`, global.defaultHeaders)
+            const upcomingInvoice = await upcomingInvoiceResponse.json()
+
+            const threshold = 100
+
+            if (
+                !upcomingInvoice.error && 
+                upcomingInvoice.created && 
+                (upcomingInvoice.created*1000 - new Date().getTime()) < 100*60*60*24*1 // 1 days
+            ) {
+                if (upcomingInvoice.amount_due / 100 > threshold) {
+                    posthog.capture('upcoming_invoice', {
+                        invoice_date: new Date(upcomingInvoice.created).toLocaleDateString('en-GB'),
+                        invoice_current_amount: upcomingInvoice.amount_due
+                    })
+                }
+            }
+
         }
 
 
-        posthog.capture('new_stripe_subscription', {
+        posthog.capture('new_stripe_customer', {
             ...properties,
             $set: basicProperties
         })
