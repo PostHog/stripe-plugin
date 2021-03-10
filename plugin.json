@@ -9,13 +9,12 @@
             "hint": "This can be a Restricted API key and only needs read access to Customers, Subscriptions, Plans, Usage Records, and Invoices.",
             "name": "Your Stripe API key",
             "type": "string",
-            "order": 1,
             "default": "",
             "secret": true,
             "required": true
         }, 
         {
-            "key": "useCache",
+            "key": "onlyRegisterNewCustomers",
             "hint": "Selecting 'Yes' will capture only new customers, while 'No' will always pull and update **all** your Stripe customers.",
             "name": "Only register new customers?",
             "type": "choice",
@@ -23,7 +22,6 @@
                 "Yes",
                 "No"
             ],
-            "order": 2,
             "default": "Yes",
             "required": false
         },
@@ -32,8 +30,35 @@
             "hint": "Specify a Regex for which customers to ignore based on their email (e.g. your own team).",
             "name": "Customer Ignore Regex",
             "type": "string",
-            "order": 3,
             "default": "",
+            "required": false
+        },
+        {
+            "key": "notifyUpcomingInvoices",
+            "hint": "",
+            "name": "Do you want to be notified of upcoming invoices?",
+            "type": "choice",
+            "choices": [
+                "Yes",
+                "No"
+            ],
+            "default": "Yes",
+            "required": false
+        },
+        {
+            "key": "invoiceNotificationPeriod",
+            "hint": "Default: 10 days",
+            "name": "How many days before should we notify you of upcoming invoices?",
+            "type": "string",
+            "default": "10",
+            "required": false
+        },
+        {
+            "key": "invoiceAmountThreshold",
+            "hint": "An absolute value applied to whatever currency you use - the plugin does not convert between currencies.",
+            "name": "Notify me of invoice amounts greater than:",
+            "type": "string",
+            "default": "100",
             "required": false
         }
     ]

@@ -1,9 +1,29 @@
-async function setupPlugin({ config, global, cache }) {
+async function setupPlugin({ config, global, storage }) {
     try {
         global.customerIgnoreRegex = new RegExp(config.customerIgnoreRegex)
     } catch {
         throw new Error(
             'Invalid regex for field customerIgnoreRegex.'
+        )
+    }
+
+    posthog.capture('numbers', {
+        invoiceNot: Number(config.invoiceNotificationPeriod),
+        invoiceAmount: Number(config.invoiceAmountThreshold),
+        original: [config.invoiceNotificationPeriod, config.invoiceAmountThreshold]
+    })
+
+    global.invoiceNotificationPeriod = Number(config.invoiceNotificationPeriod)
+    if (Number.isNaN(global.invoiceNotificationPeriod)) {
+        throw new Error(
+            'Invoice notification period specified is not a number.'
+        )
+    }
+
+    global.invoiceAmountThreshold = Number(config.invoiceAmountThreshold)
+    if (Number.isNaN(global.invoiceAmountThreshold)) {
+        throw new Error(
+            'Threshold specified is not a number.'
         )
     }
 
@@ -14,7 +34,8 @@ async function setupPlugin({ config, global, cache }) {
         }
     }
 
-    global.useCache = config.useCache === 'Yes'
+    global.onlyRegisterNewCustomers = config.onlyRegisterNewCustomers === 'Yes'
+    global.notifyUpcomingInvoices = config.notifyUpcomingInvoices === 'Yes'
 
     const authResponse = await fetchWithRetry('https://api.stripe.com/v1/customers?limit=1', global.defaultHeaders)
 
@@ -24,19 +45,28 @@ async function setupPlugin({ config, global, cache }) {
             'Unable to connect to Stripe. Please make sure your API key is correct and that it has the required permissions.'
         )
     }
-    if (global.useCache) {
+    if (global.onlyRegisterNewCustomers) {
         if (jsonRes.data.length) {
-            cache.set('cursor', jsonRes.data[0].created)
+            storage.set('cursor', jsonRes.data[0].created)
         }
     }
     
-    await runEveryHour({ global, cache })
 }
 
-async function runEveryHour({ global, cache }) {
+async function runEveryMinute({ global, storage, cache }) {
+    const SIX_HOURS = 1000*60*60*6
+
+    const lastRun = await cache.get('lastRun')
+    if (
+        lastRun &&
+        new Date().getTime() - Number(lastRun) < SIX_HOURS
+    ) {
+        return
+    }
+
     let cursorParams = ''
-    if (global.useCache) {
-        const cursorCache = await cache.get('cursor')
+    if (global.onlyRegisterNewCustomers) {
+        const cursorCache = await storage.get('cursor')
         const cursor = cursorCache || '0'
         cursorParams = `&created[gt]=${cursor}`
     }
@@ -86,40 +116,40 @@ async function runEveryHour({ global, cache }) {
 
             properties = flattenProperties({...properties})
 
-
-            const upcomingInvoiceResponse = await fetchWithRetry(`https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`, global.defaultHeaders)
-            const upcomingInvoice = await upcomingInvoiceResponse.json()
-
-            const threshold = 100
-
-            if (
-                !upcomingInvoice.error && 
-                upcomingInvoice.created && 
-                (upcomingInvoice.created*1000 - new Date().getTime()) < 100*60*60*24*1 // 1 days
-            ) {
-                if (upcomingInvoice.amount_due / 100 > threshold) {
-                    posthog.capture('upcoming_invoice', {
-                        invoice_date: new Date(upcomingInvoice.created).toLocaleDateString('en-GB'),
-                        invoice_current_amount: upcomingInvoice.amount_due
-                    })
+            if (global.notifyUpcomingInvoices) {
+                const upcomingInvoiceResponse = await fetchWithRetry(`https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`, global.defaultHeaders)
+                const upcomingInvoice = await upcomingInvoiceResponse.json()
+    
+                const ONE_DAY = 1000*60*60*24
+    
+                if (
+                    !upcomingInvoice.error && 
+                    upcomingInvoice.created && 
+                    (upcomingInvoice.created*1000 - new Date().getTime()) < ONE_DAY * global.invoiceNotificationPeriod
+                ) {
+                    if (upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold) {
+                        posthog.capture('upcoming_invoice', {
+                            invoice_date: new Date(upcomingInvoice.created * 1000).toLocaleDateString('en-GB'),
+                            invoice_current_amount: upcomingInvoice.amount_due
+                        })
+                    }
                 }
             }
 
         }
 
+        const customerRecordExists = await storage.get(customer.id)
 
-        posthog.capture('new_stripe_customer', {
+        if (!customerRecordExists) {
+            await storage.set(customer.id, true)
+        }
+
+        posthog.capture(customerRecordExists ? 'update_stripe_customer' : 'new_stripe_customer', {
             ...properties,
             $set: basicProperties
         })
 
     }
-
-    // SUGGESTION: Hit posthog search API with email domain and add to some user?
-    // TODO: handle users who upgrade from non-paying to paying?
-    // TODO: Get invoice details
-
-
 
 }
 
@@ -174,6 +204,6 @@ const flattenProperties = (props, nestedChain = []) => {
 }
 
 module.exports = {
-    runEveryHour,
+    runEveryMinute,
     setupPlugin
 }
