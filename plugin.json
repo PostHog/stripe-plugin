@@ -1,7 +1,7 @@
 {
-    "name": "mailboxlayer-plugin",
-    "url": "https://github.com/PostHog/mailboxlayer-plugin",
-    "description": "Get email scores for PostHog users using the Mailboxlayer API.",
+    "name": "Stripe Plugin",
+    "url": "https://github.com/PostHog/stripe-plugin",
+    "description": "Get customer and invoice data from Stripe into PostHog.",
     "main": "index.js",
     "config": [
         {
