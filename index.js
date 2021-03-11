@@ -7,11 +7,6 @@ async function setupPlugin({ config, global, storage }) {
         )
     }
 
-    posthog.capture('numbers', {
-        invoiceNot: Number(config.invoiceNotificationPeriod),
-        invoiceAmount: Number(config.invoiceAmountThreshold),
-        original: [config.invoiceNotificationPeriod, config.invoiceAmountThreshold]
-    })
 
     global.invoiceNotificationPeriod = Number(config.invoiceNotificationPeriod)
     if (Number.isNaN(global.invoiceNotificationPeriod)) {
