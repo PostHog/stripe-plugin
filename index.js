@@ -157,6 +157,8 @@ async function runEveryMinute({ global, storage, cache }) {
 
     }
 
+    await cache.set('lastRun', new Date().getTime())
+
 }
 
 
