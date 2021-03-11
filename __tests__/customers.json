@@ -1,0 +1,113 @@
+{
+    "object": "list",
+    "url": "/v1/customers",
+    "has_more": false,
+    "data": [
+      {
+        "id": "cus_J632IbQFZfXXt5",
+        "object": "customer",
+        "address": null,
+        "balance": 0,
+        "created": 1615478426,
+        "currency": "usd",
+        "default_source": null,
+        "delinquent": false,
+        "description": null,
+        "discount": null,
+        "email": null,
+        "invoice_prefix": "38AA64D",
+        "invoice_settings": {
+          "custom_fields": null,
+          "default_payment_method": null,
+          "footer": null
+        },
+        "livemode": false,
+        "metadata": {},
+        "name": null,
+        "next_invoice_sequence": 1,
+        "phone": null,
+        "preferred_locales": [],
+        "shipping": null,
+        "tax_exempt": "none",
+        "subscriptions": {
+            "data": [
+                {
+                    "id": "sub_J2i9v9VdhWbjju",
+                    "object": "subscription",
+                    "application_fee_percent": null,
+                    "billing_cycle_anchor": 1614708845,
+                    "billing_thresholds": null,
+                    "cancel_at": null,
+                    "cancel_at_period_end": false,
+                    "canceled_at": null,
+                    "collection_method": "charge_automatically",
+                    "created": 1614708845,
+                    "current_period_end": 1617387245,
+                    "current_period_start": 1614708845,
+                    "customer": "cus_IuiXChYGDqmHPi",
+                    "days_until_due": null,
+                    "default_payment_method": null,
+                    "default_source": null,
+                    "default_tax_rates": [],
+                    "discount": null,
+                    "ended_at": null,
+                    "items": {
+                      "object": "list",
+                      "data": [
+                        {
+                          "id": "si_J2i9eUttdXoSlA",
+                          "object": "subscription_item",
+                          "billing_thresholds": null,
+                          "created": 1614708846,
+                          "metadata": {},
+                          "price": {
+                            "id": "price_1IIt6eEuIatRXSdz0WhjQeI2",
+                            "object": "price",
+                            "active": true,
+                            "billing_scheme": "tiered",
+                            "created": 1612865164,
+                            "currency": "usd",
+                            "livemode": false,
+                            "lookup_key": null,
+                            "metadata": {},
+                            "nickname": null,
+                            "product": "prod_IuiXiNy8CGzEj7",
+                            "recurring": {
+                              "aggregate_usage": "sum",
+                              "interval": "month",
+                              "interval_count": 1,
+                              "usage_type": "metered"
+                            },
+                            "tiers_mode": "graduated",
+                            "transform_quantity": null,
+                            "type": "recurring",
+                            "unit_amount": null,
+                            "unit_amount_decimal": null
+                          },
+                          "subscription": "sub_J2i9v9VdhWbjju",
+                          "tax_rates": []
+                        }
+                      ],
+                      "has_more": false,
+                      "url": "/v1/subscription_items?subscription=sub_J2i9v9VdhWbjju"
+                    },
+                    "latest_invoice": "in_1IQcjREuIatRXSdzPq5XJFsQ",
+                    "livemode": false,
+                    "metadata": {},
+                    "next_pending_invoice_item_invoice": null,
+                    "pause_collection": null,
+                    "pending_invoice_item_interval": null,
+                    "pending_setup_intent": null,
+                    "pending_update": null,
+                    "schedule": null,
+                    "start_date": 1614708845,
+                    "status": "active",
+                    "transfer_data": null,
+                    "trial_end": null,
+                    "trial_start": null
+                  }
+            ]
+        }
+      }
+    ]
+  }

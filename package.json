@@ -14,7 +14,7 @@
     },
     "homepage": "https://github.com/PostHog/stripe-plugin#readme",
     "scripts": {
-        "test": "./node_modules/.bin/jest"
+        "test": "./node_modules/.bin/jest ./__tests__/index.js"
     },
     "devDependencies": {
         "husky": "^4.3.0",

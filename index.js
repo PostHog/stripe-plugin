@@ -46,6 +46,7 @@ async function setupPlugin({ config, global, storage }) {
 async function runEveryMinute({ global, storage, cache }) {
     const SIX_HOURS = 1000*60*60*6
 
+    // Run every six hours - Using runEveryMinute to run on setup
     const lastRun = await cache.get('lastRun')
     if (
         lastRun &&
@@ -58,7 +59,9 @@ async function runEveryMinute({ global, storage, cache }) {
     if (global.onlyRegisterNewCustomers) {
         const cursorCache = await storage.get('cursor')
         const cursor = cursorCache || '0'
-        cursorParams = `&created[gt]=${cursor}`
+
+        // only get customers created after the creation date of the last registered customer
+        cursorParams = `&created[gt]=${cursor}` 
     }
     
     let paginationParam = ''
@@ -86,12 +89,13 @@ async function runEveryMinute({ global, storage, cache }) {
     }
 
     for (let customer of customers) {
+
+        // Ignore customers matching the user-specified regex
         if (customer.email && global.customerIgnoreRegex.test(customer.email)) {
             continue
         }
 
-        const hasActiveSubscription = customer.subscriptions.data.length > 0
-
+        const hasActiveSubscription = customer.subscriptions && customer.subscriptions.data.length > 0
 
         // Stripe ensures properties always exist
         const basicProperties = {
@@ -117,6 +121,7 @@ async function runEveryMinute({ global, storage, cache }) {
             if (global.notifyUpcomingInvoices) {
                 const lastInvoiceDate = await cache.get(`last_invoice_${customer.id}`)
 
+                // Ensure upcoming_invoice events fire once per billing cycle
                 if (!lastInvoiceDate || Number(lastInvoiceDate) < new Date().getTime()) {
 
                     const upcomingInvoiceResponse = await fetchWithRetry(`https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`, global.defaultHeaders)
@@ -129,18 +134,17 @@ async function runEveryMinute({ global, storage, cache }) {
                     if (
                         !upcomingInvoice.error && 
                         upcomingInvoice.created && 
-                        (upcomingInvoiceDate - new Date().getTime()) < ONE_DAY * global.invoiceNotificationPeriod
+                        (upcomingInvoiceDate - new Date().getTime()) < ONE_DAY * global.invoiceNotificationPeriod &&
+                        upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold
                     ) {
-                        if (upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold) {
-                            posthog.capture('upcoming_invoice', {
-                                stripe_customer_id: customer.id,
-                                invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
-                                invoice_current_amount: upcomingInvoice.amount_due / 100,
-                                distinct_id: customer.email || customer.id
-                            })
-                            await cache.set(`last_invoice_${customer.id}`, upcomingInvoiceDate)
-                            
-                        }
+                        posthog.capture('upcoming_invoice', {
+                            stripe_customer_id: customer.id,
+                            invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
+                            invoice_current_amount: upcomingInvoice.amount_due / 100,
+                            distinct_id: customer.email || customer.id
+                        })
+                        await cache.set(`last_invoice_${customer.id}`, upcomingInvoiceDate)
+                        
                     }
                 }
             }
