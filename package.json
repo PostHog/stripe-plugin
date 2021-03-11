@@ -1,18 +1,18 @@
 {
-    "name": "mailboxlayer-plugin",
+    "name": "stripe-plugin",
     "version": "0.0.1",
-    "description": "Get email scores for PostHog users using the Mailboxlayer API.",
+    "description": "Get customer and invoice data from Stripe into PostHog.",
     "main": "index.js",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/PostHog/mailboxlayer-plugin.git"
+        "url": "git+https://github.com/PostHog/stripe-plugin.git"
     },
     "author": "Yakko Majuri",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/PostHog/mailboxlayer-plugin/issues"
+        "url": "https://github.com/PostHog/stripe-plugin/issues"
     },
-    "homepage": "https://github.com/PostHog/mailboxlayer-plugin#readme",
+    "homepage": "https://github.com/PostHog/stripe-plugin#readme",
     "scripts": {
         "test": "./node_modules/.bin/jest"
     },
