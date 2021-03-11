@@ -117,21 +117,30 @@ async function runEveryMinute({ global, storage, cache }) {
             properties = flattenProperties({...properties})
 
             if (global.notifyUpcomingInvoices) {
-                const upcomingInvoiceResponse = await fetchWithRetry(`https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`, global.defaultHeaders)
-                const upcomingInvoice = await upcomingInvoiceResponse.json()
-    
-                const ONE_DAY = 1000*60*60*24
-    
-                if (
-                    !upcomingInvoice.error && 
-                    upcomingInvoice.created && 
-                    (upcomingInvoice.created*1000 - new Date().getTime()) < ONE_DAY * global.invoiceNotificationPeriod
-                ) {
-                    if (upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold) {
-                        posthog.capture('upcoming_invoice', {
-                            invoice_date: new Date(upcomingInvoice.created * 1000).toLocaleDateString('en-GB'),
-                            invoice_current_amount: upcomingInvoice.amount_due
-                        })
+                const lastInvoiceDate = await cache.get(`last_invoice_${customer.id}`)
+
+                if (!lastInvoiceDate || Number(lastInvoiceDate) < new Date().getTime()) {
+
+                    const upcomingInvoiceResponse = await fetchWithRetry(`https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`, global.defaultHeaders)
+                    const upcomingInvoice = await upcomingInvoiceResponse.json()
+                    
+                    const ONE_DAY = 1000*60*60*24
+                    
+                    const upcomingInvoiceDate = upcomingInvoice.created*1000
+
+                    if (
+                        !upcomingInvoice.error && 
+                        upcomingInvoice.created && 
+                        (upcomingInvoiceDate - new Date().getTime()) < ONE_DAY * global.invoiceNotificationPeriod
+                    ) {
+                        if (upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold) {
+                            posthog.capture('upcoming_invoice', {
+                                invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
+                                invoice_current_amount: upcomingInvoice.amount_due
+                            })
+                            await cache.set(`last_invoice_${customer.id}`, upcomingInvoiceDate)
+                            
+                        }
                     }
                 }
             }
