@@ -1,23 +1,23 @@
 name: Unit Tests
 
 on:
-  - pull_request
+    - pull_request
 
 jobs:
-  build:
-    name: Jest Tests
-    runs-on: ubuntu-latest
-    steps:
-      # Check out the repository
-      - uses: actions/checkout@v1
+    build:
+        name: Jest Tests
+        runs-on: ubuntu-latest
+        steps:
+            # Check out the repository
+            - uses: actions/checkout@v1
 
-      # Install Node.js
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 14
+            # Install Node.js
+            - uses: actions/setup-node@v1
+              with:
+                  node-version: 14
 
-      # Install dependencies
-      - run: yarn
+            # Install dependencies
+            - run: yarn
 
-      # Run jest tests
-      - run: yarn test
+            # Run jest tests
+            - run: yarn test
