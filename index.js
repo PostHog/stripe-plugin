@@ -40,11 +40,6 @@ async function setupPlugin({ config, global, storage }) {
             'Unable to connect to Stripe. Please make sure your API key is correct and that it has the required permissions.'
         )
     }
-    if (global.onlyRegisterNewCustomers) {
-        if (jsonRes.data.length) {
-            storage.set('cursor', jsonRes.data[0].created)
-        }
-    }
     
 }
 
@@ -72,15 +67,23 @@ async function runEveryMinute({ global, storage, cache }) {
 
     let customersJson = { has_more: true }
 
+    let lastCustomerCreatedAt
+
     while (customersJson.has_more) {
         const customersResponse = await fetchWithRetry(`https://api.stripe.com/v1/customers?limit=100${cursorParams}${paginationParam}`, global.defaultHeaders)
         customersJson = await customersResponse.json()
         const newCustomers = customersJson.data
+        if (!lastCustomerCreatedAt) {
+            lastCustomerCreatedAt = newCustomers[0].created
+        }
         const lastObjectId = newCustomers[newCustomers.length-1].id
         paginationParam = `&starting_after=${lastObjectId}`
         customers = [...customers, ...newCustomers]
     }
 
+    if (global.onlyRegisterNewCustomers && lastCustomerCreatedAt) {
+        await storage.set('cursor', lastCustomerCreatedAt)
+    }
 
     for (let customer of customers) {
         if (customer.email && global.customerIgnoreRegex.test(customer.email)) {
