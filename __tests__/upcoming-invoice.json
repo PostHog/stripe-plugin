@@ -34,58 +34,58 @@
     "footer": null,
     "last_finalization_error": null,
     "lines": {
-      "object": "list",
-      "data": [
-        {
-          "id": "il_1IQcJdEuIatRXSdzhpLaa2np",
-          "object": "line_item",
-          "amount": 0,
-          "currency": "usd",
-          "description": "0 × Test Product (at $0.0005 / month)",
-          "discount_amounts": [],
-          "discountable": true,
-          "discounts": [],
-          "livemode": false,
-          "metadata": {},
-          "period": {
-            "end": 1617385345,
-            "start": 1614707245
-          },
-          "price": {
-            "id": "price_1IIt6eEuIatRXSdz0WhjQeI2",
-            "object": "price",
-            "active": true,
-            "billing_scheme": "tiered",
-            "created": 1912865164,
-            "currency": "usd",
-            "livemode": false,
-            "lookup_key": null,
-            "metadata": {},
-            "nickname": null,
-            "product": "prod_IuiXiNy8CGzEj7",
-            "recurring": {
-              "aggregate_usage": "sum",
-              "interval": "month",
-              "interval_count": 1,
-              "usage_type": "metered"
-            },
-            "tiers_mode": "graduated",
-            "transform_quantity": null,
-            "type": "recurring",
-            "unit_amount": null,
-            "unit_amount_decimal": null
-          },
-          "proration": false,
-          "quantity": 0,
-          "subscription": "sub_J2hjz4fq3oeYZj",
-          "subscription_item": "si_J2hjAXXqSEDbMV",
-          "tax_amounts": [],
-          "tax_rates": [],
-          "type": "subscription"
-        }
-      ],
-      "has_more": false,
-      "url": "/v1/invoices/upcoming/lines?customer=cu_1IIt7DEuIatRXSdzztajAVs8\u0026subscription=su_1IQcJdEuIatRXSdzIrtSGwRo"
+        "object": "list",
+        "data": [
+            {
+                "id": "il_1IQcJdEuIatRXSdzhpLaa2np",
+                "object": "line_item",
+                "amount": 0,
+                "currency": "usd",
+                "description": "0 × Test Product (at $0.0005 / month)",
+                "discount_amounts": [],
+                "discountable": true,
+                "discounts": [],
+                "livemode": false,
+                "metadata": {},
+                "period": {
+                    "end": 1617385345,
+                    "start": 1614707245
+                },
+                "price": {
+                    "id": "price_1IIt6eEuIatRXSdz0WhjQeI2",
+                    "object": "price",
+                    "active": true,
+                    "billing_scheme": "tiered",
+                    "created": 1912865164,
+                    "currency": "usd",
+                    "livemode": false,
+                    "lookup_key": null,
+                    "metadata": {},
+                    "nickname": null,
+                    "product": "prod_IuiXiNy8CGzEj7",
+                    "recurring": {
+                        "aggregate_usage": "sum",
+                        "interval": "month",
+                        "interval_count": 1,
+                        "usage_type": "metered"
+                    },
+                    "tiers_mode": "graduated",
+                    "transform_quantity": null,
+                    "type": "recurring",
+                    "unit_amount": null,
+                    "unit_amount_decimal": null
+                },
+                "proration": false,
+                "quantity": 0,
+                "subscription": "sub_J2hjz4fq3oeYZj",
+                "subscription_item": "si_J2hjAXXqSEDbMV",
+                "tax_amounts": [],
+                "tax_rates": [],
+                "type": "subscription"
+            }
+        ],
+        "has_more": false,
+        "url": "/v1/invoices/upcoming/lines?customer=cu_1IIt7DEuIatRXSdzztajAVs8\u0026subscription=su_1IQcJdEuIatRXSdzIrtSGwRo"
     },
     "livemode": false,
     "metadata": {},
@@ -95,8 +95,8 @@
     "paid": false,
     "payment_intent": null,
     "payment_settings": {
-      "payment_method_options": null,
-      "payment_method_types": null
+        "payment_method_options": null,
+        "payment_method_types": null
     },
     "period_end": 1614707245,
     "period_start": 1614707245,
@@ -107,10 +107,10 @@
     "statement_descriptor": null,
     "status": "draft",
     "status_transitions": {
-      "finalized_at": null,
-      "marked_uncollectible_at": null,
-      "paid_at": null,
-      "voided_at": null
+        "finalized_at": null,
+        "marked_uncollectible_at": null,
+        "paid_at": null,
+        "voided_at": null
     },
     "subscription": "sub_J2hjz4fq3oeYZj",
     "subtotal": 0,

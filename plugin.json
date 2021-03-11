@@ -12,16 +12,13 @@
             "default": "",
             "secret": true,
             "required": true
-        }, 
+        },
         {
             "key": "onlyRegisterNewCustomers",
             "hint": "Selecting 'Yes' will capture only new customers, while 'No' will always pull and update **all** your Stripe customers.",
             "name": "Only register new customers?",
             "type": "choice",
-            "choices": [
-                "Yes",
-                "No"
-            ],
+            "choices": ["Yes", "No"],
             "default": "Yes",
             "required": false
         },
@@ -38,10 +35,7 @@
             "hint": "",
             "name": "Do you want to be notified of upcoming invoices?",
             "type": "choice",
-            "choices": [
-                "Yes",
-                "No"
-            ],
+            "choices": ["Yes", "No"],
             "default": "Yes",
             "required": false
         },
