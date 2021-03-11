@@ -135,8 +135,10 @@ async function runEveryMinute({ global, storage, cache }) {
                     ) {
                         if (upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold) {
                             posthog.capture('upcoming_invoice', {
+                                stripe_customer_id: customer.id,
                                 invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
-                                invoice_current_amount: upcomingInvoice.amount_due
+                                invoice_current_amount: upcomingInvoice.amount_due,
+                                distinct_id: customer.email || customer.id
                             })
                             await cache.set(`last_invoice_${customer.id}`, upcomingInvoiceDate)
                             
