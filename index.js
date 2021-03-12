@@ -38,7 +38,7 @@ async function runEveryMinute({ global, storage, cache }) {
     const SIX_HOURS = 1000 * 60 * 60 * 6
 
     // Run every six hours - Using runEveryMinute to run on setup
-    const lastRun = await cache.get('lastRun')
+    const lastRun = await cache.get('_lastRun')
     if (lastRun && new Date().getTime() - Number(lastRun) < SIX_HOURS) {
         return
     }
@@ -148,7 +148,7 @@ async function runEveryMinute({ global, storage, cache }) {
         })
     }
 
-    await cache.set('lastRun', new Date().getTime())
+    await cache.set('_lastRun', new Date().getTime())
 }
 
 async function fetchWithRetry(url, options = {}, method = 'GET', isRetry = false) {
