@@ -27,7 +27,6 @@ async function setupPlugin({ config, global, storage }) {
 
     const authResponse = await fetchWithRetry('https://api.stripe.com/v1/customers?limit=1', global.defaultHeaders)
 
-    const jsonRes = await authResponse.json()
     if (!statusOk(authResponse)) {
         throw new Error(
             'Unable to connect to Stripe. Please make sure your API key is correct and that it has the required permissions.'
@@ -44,15 +43,6 @@ async function runEveryMinute({ global, storage, cache }) {
         return
     }
 
-    let cursorParams = ''
-    if (global.onlyRegisterNewCustomers) {
-        const cursorCache = await storage.get('cursor')
-        const cursor = cursorCache || '0'
-
-        // only get customers created after the creation date of the last registered customer
-        cursorParams = `&created[gt]=${cursor}`
-    }
-
     let paginationParam = ''
 
     let customers = []
@@ -63,7 +53,7 @@ async function runEveryMinute({ global, storage, cache }) {
 
     while (customersJson.has_more) {
         const customersResponse = await fetchWithRetry(
-            `https://api.stripe.com/v1/customers?limit=100${cursorParams}${paginationParam}`,
+            `https://api.stripe.com/v1/customers?limit=100${paginationParam}`,
             global.defaultHeaders
         )
         customersJson = await customersResponse.json()
@@ -79,10 +69,6 @@ async function runEveryMinute({ global, storage, cache }) {
         const lastObjectId = newCustomers[newCustomers.length - 1].id
         paginationParam = `&starting_after=${lastObjectId}`
         customers = [...customers, ...newCustomers]
-    }
-
-    if (global.onlyRegisterNewCustomers && lastCustomerCreatedAt) {
-        await storage.set('cursor', lastCustomerCreatedAt)
     }
 
     for (let customer of customers) {
@@ -150,6 +136,10 @@ async function runEveryMinute({ global, storage, cache }) {
 
         if (!customerRecordExists) {
             await storage.set(customer.id, true)
+        }
+
+        if (global.onlyRegisterNewCustomers && customerRecordExists) {
+            break
         }
 
         posthog.capture(customerRecordExists ? 'update_stripe_customer' : 'new_stripe_customer', {
