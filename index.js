@@ -70,7 +70,7 @@ async function runEveryMinute({ global, storage, cache }) {
         const newCustomers = customersJson.data
         
         if (!newCustomers) {
-            return
+            break
         }
 
         if (!lastCustomerCreatedAt) {
