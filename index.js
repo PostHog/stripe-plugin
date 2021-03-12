@@ -68,7 +68,12 @@ async function runEveryMinute({ global, storage, cache }) {
         )
         customersJson = await customersResponse.json()
         const newCustomers = customersJson.data
-        if (!lastCustomerCreatedAt && newCustomers) {
+        
+        if (!newCustomers) {
+            return
+        }
+
+        if (!lastCustomerCreatedAt) {
             lastCustomerCreatedAt = newCustomers[0].created
         }
         const lastObjectId = newCustomers[newCustomers.length - 1].id
