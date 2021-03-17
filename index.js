@@ -68,7 +68,7 @@ async function runEveryMinute({ global, storage, cache }) {
     // Run every one hour - Using runEveryMinute to run on setup
     const lastRun = await cache.get('_lastRun')
     if (lastRun && new Date().getTime() - Number(lastRun) < ONE_HOUR) {
-        // return
+        return
     }
 
     let customers = await fetchAllCustomers(global.defaultHeaders)
