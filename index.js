@@ -133,7 +133,7 @@ async function runEveryMinute({ global, storage, cache }) {
                 }
 
                 if (!upcomingInvoice.error && upcomingInvoice.created) {
-                    posthog.capture('Upcoming Invoice', {
+                    const eventProps = {
                         amount: invoiceData.amount_due,
                         invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
                         product: invoiceData.product,
@@ -141,29 +141,34 @@ async function runEveryMinute({ global, storage, cache }) {
                         stripe_customer_id: customer.id,
                         distinct_id: customer.email || customer.id,
                         $set: customer.email ? { email: customer.email } : undefined
-                    })
+                    }
+                    posthog.capture('Upcoming Invoice', eventProps)
+
+                    if (global.invoiceAmountThreshold && invoiceData.amount_due > global.invoiceAmountThreshold) {
+                        eventProps.alert_threshold = global.invoiceAmountThreshold
+                        posthog.capture('Upcoming Invoice – Above Threshold', eventProps)
+                    }
                 }
             }
         }
 
-        // Note: I think if we want to automatically update users we should just update properties instead of firing events
-        // I also think we should perhaps restrict the properties we send so it doesn't feel overwhelming to
-        // see a lot of properties you may not understand.
+        const customerRecordExists = await storage.get(customer.id)
 
-        // const customerRecordExists = await storage.get(customer.id)
-        //
-        // if (!customerRecordExists) {
-        //     await storage.set(customer.id, true)
-        // }
-        //
-        // if (global.onlyRegisterNewCustomers && customerRecordExists) {
-        //     break
-        // }
-        //
-        // posthog.capture(customerRecordExists ? 'update_stripe_customer' : 'new_stripe_customer', {
-        //     ...properties,
-        //     $set: basicProperties
-        // })
+        if (!customerRecordExists) {
+            await storage.set(customer.id, true)
+        }
+
+        if (global.onlyRegisterNewCustomers && customerRecordExists) {
+            break
+        }
+
+        posthog.capture(customerRecordExists ? 'Updated Stripe Customer' : 'Identified Stripe Customer', {
+            distinct_id: customer.email || customer.id,
+            $set: {
+                ...basicProperties,
+                ...{ subscribed_product: productName }
+            }
+        })
     }
 
     logAggregatedInvoices(invoicesByProduct)
@@ -187,8 +192,7 @@ function logAggregatedInvoices(invoicesByProduct) {
     for (const [product, billingSum] of Object.entries(totalsByProduct)) {
         const props = {
             amount: parseFloat(billingSum.toFixed(2)),
-            product: product,
-            distinct_id: 'posthog-stripe-plugin'
+            product: product
         }
         posthog.capture('Upcoming Invoices (Aggregated)', props)
     }
