@@ -60,11 +60,12 @@ test('runEveryMinute', async () => {
 
     await runEveryMinute(getMeta())
     expect(posthog.capture).toHaveBeenCalledTimes(2)
-    expect(posthog.capture).toHaveBeenNthCalledWith(1, 'upcoming_invoice', {
+    expect(posthog.capture).toHaveBeenNthCalledWith(1, 'Upcoming Invoice', {
         distinct_id: 'cus_J632IbQFZfXXt5',
-        invoice_current_amount: 150,
+        amount: 150,
         invoice_date: '02/03/2021',
-        stripe_customer_id: 'cus_J632IbQFZfXXt5'
+        stripe_customer_id: 'cus_J632IbQFZfXXt5',
+        quantity: 0,
+        $set: undefined
     })
-    expect(posthog.capture).toHaveBeenNthCalledWith(2, 'new_stripe_customer', newCustomerEventProps)
 })

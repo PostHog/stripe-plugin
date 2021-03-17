@@ -97,11 +97,11 @@ async function runEveryMinute({ global, storage, cache }) {
             for (let i = 0; i < customer.subscriptions.data.length; ++i) {
                 let subscription = customer.subscriptions.data[i]
                 const productResponse = await fetchWithRetry(
-                    `https://api.stripe.com/v1/products/${subscription.plan.product}`,
+                    `https://api.stripe.com/v1/products/${subscription.plan?.product}`,
                     global.defaultHeaders
                 )
                 const product = await productResponse.json()
-                productName = product.name
+                productName = product?.name
                 subscription.product_name = product.name
                 properties[`subscription${i}`] = subscription
             }
@@ -140,7 +140,7 @@ async function runEveryMinute({ global, storage, cache }) {
                         quantity: invoiceData.quantity,
                         stripe_customer_id: customer.id,
                         distinct_id: customer.email || customer.id,
-                        $set: { email: customer.email }
+                        $set: customer.email ? { email: customer.email } : undefined
                     })
                 }
             }
