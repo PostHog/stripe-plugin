@@ -42,7 +42,7 @@ async function fetchAllCustomers(defaultHeaders) {
     let customersJson = { has_more: true }
     while (customersJson.has_more) {
         const customersResponse = await fetchWithRetry(
-            `https://api.stripe.com/v1/customers?limit=10${paginationParam}`,
+            `https://api.stripe.com/v1/customers?limit=100${paginationParam}`,
             defaultHeaders
         )
         customersJson = await customersResponse.json()
@@ -173,6 +173,7 @@ async function runEveryMinute({ global, storage, cache }) {
 
 function logAggregatedInvoices(invoicesByProduct) {
     const totalsByProduct = {}
+    // First we need to sum all the invoices for each product.
     for (const [product, invoices] of Object.entries(invoicesByProduct)) {
         invoices.forEach((invoice) => {
             if (product in totalsByProduct) {
@@ -182,7 +183,7 @@ function logAggregatedInvoices(invoicesByProduct) {
             }
         })
     }
-
+    // Now for each product type, we send an event to PostHog with the sum total for that product.
     for (const [product, billingSum] of Object.entries(totalsByProduct)) {
         const props = {
             amount: parseFloat(billingSum.toFixed(2)),
