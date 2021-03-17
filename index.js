@@ -65,7 +65,6 @@ async function fetchAllCustomers(defaultHeaders) {
 
 async function runEveryMinute({ global, storage, cache }) {
     const ONE_HOUR = 1000 * 60 * 60 * 1
-
     // Run every one hour - Using runEveryMinute to run on setup
     // const lastRun = await cache.get('_lastRun')
     // if (lastRun && new Date().getTime() - Number(lastRun) < ONE_HOUR) {
