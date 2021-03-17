@@ -163,7 +163,7 @@ async function runEveryMinute({ global, storage, cache }) {
         if (global.onlyRegisterNewCustomers && customerRecordExists) {
             continue
         } else {
-            posthog.capture(customerRecordExists ? 'Updated Stripe Customer' : 'p Identified Stripe Customer', {
+            posthog.capture(customerRecordExists ? 'Updated Stripe Customer' : 'Identified Stripe Customer', {
                 distinct_id: customer.email || customer.id,
                 $set: {
                     ...basicProperties,
