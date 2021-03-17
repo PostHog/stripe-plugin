@@ -71,11 +71,11 @@ async function runEveryMinute({ global, storage, cache }) {
         return
     }
 
-    let customers = await fetchAllCustomers(global.defaultHeaders)
+    const customers = await fetchAllCustomers(global.defaultHeaders)
 
     const invoicesByProduct = {}
 
-    for (let customer of customers) {
+    for (const customer of customers) {
         // Ignore customers matching the user-specified regex
         if (customer.email && global.customerIgnoreRegex && global.customerIgnoreRegex.test(customer.email)) {
             continue
@@ -161,16 +161,16 @@ async function runEveryMinute({ global, storage, cache }) {
         }
 
         if (global.onlyRegisterNewCustomers && customerRecordExists) {
-            break
+            continue
+        } else {
+            posthog.capture(customerRecordExists ? 'Updated Stripe Customer' : 'Identified Stripe Customer', {
+                distinct_id: customer.email || customer.id,
+                $set: {
+                    ...basicProperties,
+                    ...{ subscribed_product: productName }
+                }
+            })
         }
-
-        posthog.capture(customerRecordExists ? 'Updated Stripe Customer' : 'Identified Stripe Customer', {
-            distinct_id: customer.email || customer.id,
-            $set: {
-                ...basicProperties,
-                ...{ subscribed_product: productName }
-            }
-        })
     }
 
     logAggregatedInvoices(invoicesByProduct)
