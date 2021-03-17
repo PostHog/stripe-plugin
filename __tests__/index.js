@@ -59,12 +59,23 @@ test('runEveryMinute', async () => {
     expect(fetch).toHaveBeenCalledTimes(0)
 
     await runEveryMinute(getMeta())
-    expect(posthog.capture).toHaveBeenCalledTimes(2)
-    expect(posthog.capture).toHaveBeenNthCalledWith(1, 'Upcoming Invoice', {
+    expect(posthog.capture).toHaveBeenCalledTimes(4)
+    expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice', {
         distinct_id: 'cus_J632IbQFZfXXt5',
         amount: 150,
         invoice_date: '02/03/2021',
         stripe_customer_id: 'cus_J632IbQFZfXXt5',
+        quantity: 0,
+        $set: undefined
+    })
+
+    expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice – Above Threshold', {
+        distinct_id: 'cus_J632IbQFZfXXt5',
+        amount: 150,
+        invoice_date: '02/03/2021',
+        stripe_customer_id: 'cus_J632IbQFZfXXt5',
+        alert_threshold: 100,
+        product: undefined,
         quantity: 0,
         $set: undefined
     })

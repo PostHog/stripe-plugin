@@ -145,8 +145,10 @@ async function runEveryMinute({ global, storage, cache }) {
                     posthog.capture('Upcoming Invoice', eventProps)
 
                     if (global.invoiceAmountThreshold && invoiceData.amount_due > global.invoiceAmountThreshold) {
-                        eventProps.alert_threshold = global.invoiceAmountThreshold
-                        posthog.capture('Upcoming Invoice – Above Threshold', eventProps)
+                        posthog.capture('Upcoming Invoice – Above Threshold', {
+                            ...eventProps,
+                            ...{ alert_threshold: global.invoiceAmountThreshold }
+                        })
                     }
                 }
             }
