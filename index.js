@@ -1,6 +1,6 @@
 async function setupPlugin({ config, global, storage }) {
     try {
-        global.customerIgnoreRegex = new RegExp(config.customerIgnoreRegex)
+        global.customerIgnoreRegex = config.customerIgnoreRegex ? new RegExp(config.customerIgnoreRegex) : null
     } catch {
         throw new Error('Invalid regex for field customerIgnoreRegex.')
     }
@@ -34,31 +34,20 @@ async function setupPlugin({ config, global, storage }) {
     }
 }
 
-async function runEveryMinute({ global, storage, cache }) {
-    const SIX_HOURS = 1000 * 60 * 60 * 6
-
-    // Run every six hours - Using runEveryMinute to run on setup
-    const lastRun = await cache.get('_lastRun')
-    if (lastRun && new Date().getTime() - Number(lastRun) < SIX_HOURS) {
-        return
-    }
-
-    let paginationParam = ''
-
+async function fetchAllCustomers(defaultHeaders) {
     let customers = []
 
-    let customersJson = { has_more: true }
-
+    let paginationParam = ''
     let lastCustomerCreatedAt
-
+    let customersJson = { has_more: true }
     while (customersJson.has_more) {
         const customersResponse = await fetchWithRetry(
             `https://api.stripe.com/v1/customers?limit=100${paginationParam}`,
-            global.defaultHeaders
+            defaultHeaders
         )
         customersJson = await customersResponse.json()
         const newCustomers = customersJson.data
-        
+
         if (!newCustomers) {
             break
         }
@@ -71,14 +60,27 @@ async function runEveryMinute({ global, storage, cache }) {
         customers = [...customers, ...newCustomers]
     }
 
+    return customers
+}
+
+async function runEveryMinute({ global, storage, cache }) {
+    const ONE_HOUR = 1000 * 60 * 60 * 1
+    // Run every one hour - Using runEveryMinute to run on setup
+    const lastRun = await cache.get('_lastRun')
+    if (lastRun && new Date().getTime() - Number(lastRun) < ONE_HOUR) {
+        return
+    }
+
+    let customers = await fetchAllCustomers(global.defaultHeaders)
+
+    const invoicesByProduct = {}
+
     for (let customer of customers) {
         // Ignore customers matching the user-specified regex
-        if (customer.email && global.customerIgnoreRegex.test(customer.email)) {
+        if (customer.email && global.customerIgnoreRegex && global.customerIgnoreRegex.test(customer.email)) {
             continue
         }
-
         const hasActiveSubscription = customer.subscriptions && customer.subscriptions.data.length > 0
-
         // Stripe ensures properties always exist
         const basicProperties = {
             distinct_id: customer.email || customer.id,
@@ -89,44 +91,64 @@ async function runEveryMinute({ global, storage, cache }) {
         }
 
         let properties = { ...basicProperties }
+        let productName
 
         if (hasActiveSubscription) {
             for (let i = 0; i < customer.subscriptions.data.length; ++i) {
                 let subscription = customer.subscriptions.data[i]
-
+                const productResponse = await fetchWithRetry(
+                    `https://api.stripe.com/v1/products/${subscription.plan?.product}`,
+                    global.defaultHeaders
+                )
+                const product = await productResponse.json()
+                productName = product?.name
+                subscription.product_name = product.name
                 properties[`subscription${i}`] = subscription
             }
 
             properties = flattenProperties({ ...properties })
-
             if (global.notifyUpcomingInvoices) {
-                const lastInvoiceDate = await cache.get(`last_invoice_${customer.id}`)
+                const upcomingInvoiceResponse = await fetchWithRetry(
+                    `https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`,
+                    global.defaultHeaders
+                )
+                const upcomingInvoice = await upcomingInvoiceResponse.json()
 
-                // Ensure upcoming_invoice events fire once per billing cycle
-                if (!lastInvoiceDate || Number(lastInvoiceDate) < new Date().getTime()) {
-                    const upcomingInvoiceResponse = await fetchWithRetry(
-                        `https://api.stripe.com/v1/invoices/upcoming?customer=${customer.id}`,
-                        global.defaultHeaders
-                    )
-                    const upcomingInvoice = await upcomingInvoiceResponse.json()
+                const upcomingInvoiceDate = upcomingInvoice.created * 1000
 
-                    const ONE_DAY = 1000 * 60 * 60 * 24
+                const invoiceData = {
+                    product: productName,
+                    amount_due: upcomingInvoice.amount_due / 100,
+                    customer: customer.email,
+                    quantity: 0
+                }
+                upcomingInvoice.lines?.data.forEach((line) => {
+                    invoiceData.quantity += line.quantity
+                })
 
-                    const upcomingInvoiceDate = upcomingInvoice.created * 1000
+                if (productName in invoicesByProduct) {
+                    invoicesByProduct[productName].push(invoiceData)
+                } else {
+                    invoicesByProduct[productName] = [invoiceData]
+                }
 
-                    if (
-                        !upcomingInvoice.error &&
-                        upcomingInvoice.created &&
-                        upcomingInvoiceDate - new Date().getTime() < ONE_DAY * global.invoiceNotificationPeriod &&
-                        upcomingInvoice.amount_due / 100 > global.invoiceAmountThreshold
-                    ) {
-                        posthog.capture('upcoming_invoice', {
-                            stripe_customer_id: customer.id,
-                            invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
-                            invoice_current_amount: upcomingInvoice.amount_due / 100,
-                            distinct_id: customer.email || customer.id
+                if (!upcomingInvoice.error && upcomingInvoice.created) {
+                    const eventProps = {
+                        amount: invoiceData.amount_due,
+                        invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
+                        product: invoiceData.product,
+                        quantity: invoiceData.quantity,
+                        stripe_customer_id: customer.id,
+                        distinct_id: customer.email || customer.id,
+                        $set: customer.email ? { email: customer.email } : undefined
+                    }
+                    posthog.capture('Upcoming Invoice', eventProps)
+
+                    if (global.invoiceAmountThreshold && invoiceData.amount_due > global.invoiceAmountThreshold) {
+                        posthog.capture('Upcoming Invoice – Above Threshold', {
+                            ...eventProps,
+                            ...{ alert_threshold: global.invoiceAmountThreshold }
                         })
-                        await cache.set(`last_invoice_${customer.id}`, upcomingInvoiceDate)
                     }
                 }
             }
@@ -142,13 +164,40 @@ async function runEveryMinute({ global, storage, cache }) {
             break
         }
 
-        posthog.capture(customerRecordExists ? 'update_stripe_customer' : 'new_stripe_customer', {
-            ...properties,
-            $set: basicProperties
+        posthog.capture(customerRecordExists ? 'Updated Stripe Customer' : 'Identified Stripe Customer', {
+            distinct_id: customer.email || customer.id,
+            $set: {
+                ...basicProperties,
+                ...{ subscribed_product: productName }
+            }
         })
     }
 
+    logAggregatedInvoices(invoicesByProduct)
+
     await cache.set('_lastRun', new Date().getTime())
+}
+
+function logAggregatedInvoices(invoicesByProduct) {
+    const totalsByProduct = {}
+    // First we need to sum all the invoices for each product.
+    for (const [product, invoices] of Object.entries(invoicesByProduct)) {
+        invoices.forEach((invoice) => {
+            if (product in totalsByProduct) {
+                totalsByProduct[product] += invoice.amount_due
+            } else {
+                totalsByProduct[product] = invoice.amount_due
+            }
+        })
+    }
+    // Now for each product type, we send an event to PostHog with the sum total for that product.
+    for (const [product, billingSum] of Object.entries(totalsByProduct)) {
+        const props = {
+            amount: parseFloat(billingSum.toFixed(2)),
+            product: product
+        }
+        posthog.capture('Upcoming Invoices (Aggregated)', props)
+    }
 }
 
 async function fetchWithRetry(url, options = {}, method = 'GET', isRetry = false) {
