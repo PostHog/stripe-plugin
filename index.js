@@ -97,23 +97,11 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
         invoices = [...invoices, ...newPayments]
     }
 
-    const cleanedPayments = []
+    let paymentsReceived = 0.0
     invoices.forEach((payment) => {
         if (!customerIgnoreRegex || !customerIgnoreRegex.test(payment.customer_email)) {
-            cleanedPayments.push({
-                email: payment.customer_email,
-                amount_due: payment.amount_due,
-                amount_paid: payment.amount_paid,
-                status: payment.status,
-                created: new Date(payment.created * 1000).toLocaleDateString('en-GB'),
-                currency: payment.currency
-            })
+            paymentsReceived += payment.amount_paid
         }
-    })
-
-    let paymentsReceived = 0.0
-    cleanedPayments.forEach((payment) => {
-        paymentsReceived += payment.amount_paid
     })
 
     posthog.capture('Paid Invoices', {
