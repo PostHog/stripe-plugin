@@ -64,6 +64,7 @@ test('runEveryMinute', async () => {
     const testNumberOfCaptureCalls = () => {
         expect(posthog.capture).toHaveBeenCalledTimes(5)
     }
+    testNumberOfCaptureCalls()
 
     const testUpcomingInvoice = () => {
         expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice', {
@@ -75,6 +76,7 @@ test('runEveryMinute', async () => {
             $set: undefined
         })
     }
+    testUpcomingInvoice()
 
     const testPaidInvoices = () => {
         const today = new Date()
@@ -82,6 +84,7 @@ test('runEveryMinute', async () => {
         const invoicePeriod = firstDayThisMonth.toLocaleDateString('en-GB')
         expect(posthog.capture).toHaveBeenCalledWith('Paid Invoices', { amount: 0, period: invoicePeriod })
     }
+    testPaidInvoices()
 
     const testInvoiceAlerts = () => {
         expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice – Above Threshold', {
@@ -95,9 +98,5 @@ test('runEveryMinute', async () => {
             $set: undefined
         })
     }
-
-    testNumberOfCaptureCalls()
-    testUpcomingInvoice()
-    testPaidInvoices()
     testInvoiceAlerts()
 })
