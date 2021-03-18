@@ -66,7 +66,7 @@ async function fetchAllCustomers(defaultHeaders) {
 }
 
 async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
-    let payments = []
+    let invoices = []
 
     let paginationParam = ''
     let invoiceJson = { has_more: true }
@@ -94,11 +94,11 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
 
         const lastObjectId = newPayments[newPayments.length - 1].id
         paginationParam = `&starting_after=${lastObjectId}`
-        payments = [...payments, ...newPayments]
+        invoices = [...invoices, ...newPayments]
     }
 
     const cleanedPayments = []
-    payments.forEach((payment) => {
+    invoices.forEach((payment) => {
         if (!customerIgnoreRegex || !customerIgnoreRegex.test(payment.customer_email)) {
             cleanedPayments.push({
                 email: payment.customer_email,
@@ -115,7 +115,7 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
     cleanedPayments.forEach((payment) => {
         paymentsReceived += payment.amount_paid
     })
-    posthog.debug = true
+
     posthog.capture('Paid Invoices', {
         period: firstDayThisMonth.toLocaleDateString('en-GB'),
         amount: parseFloat((paymentsReceived / 100).toFixed(2))
