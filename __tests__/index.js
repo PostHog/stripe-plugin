@@ -61,42 +61,31 @@ test('runEveryMinute', async () => {
 
     await runEveryMinute(getMeta())
 
-    const testNumberOfCaptureCalls = () => {
-        expect(posthog.capture).toHaveBeenCalledTimes(5)
-    }
-    testNumberOfCaptureCalls()
+    expect(posthog.capture).toHaveBeenCalledTimes(5)
 
-    const testUpcomingInvoice = () => {
-        expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice', {
-            distinct_id: 'cus_J632IbQFZfXXt5',
-            amount: 150,
-            invoice_date: '02/03/2021',
-            stripe_customer_id: 'cus_J632IbQFZfXXt5',
-            quantity: 0,
-            $set: undefined
-        })
-    }
-    testUpcomingInvoice()
+    expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice', {
+        distinct_id: 'cus_J632IbQFZfXXt5',
+        amount: 150,
+        invoice_date: '02/03/2021',
+        stripe_customer_id: 'cus_J632IbQFZfXXt5',
+        quantity: 0,
+        $set: undefined
+    })
 
-    const testPaidInvoices = () => {
-        const today = new Date()
-        const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-        const invoicePeriod = firstDayThisMonth.toLocaleDateString('en-GB')
-        expect(posthog.capture).toHaveBeenCalledWith('Paid Invoices', { amount: 0, period: invoicePeriod })
-    }
-    testPaidInvoices()
+    expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice – Above Threshold', {
+        distinct_id: 'cus_J632IbQFZfXXt5',
+        amount: 150,
+        invoice_date: '02/03/2021',
+        stripe_customer_id: 'cus_J632IbQFZfXXt5',
+        alert_threshold: 100,
+        product: undefined,
+        quantity: 0,
+        $set: undefined
+    })
 
-    const testInvoiceAlerts = () => {
-        expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice – Above Threshold', {
-            distinct_id: 'cus_J632IbQFZfXXt5',
-            amount: 150,
-            invoice_date: '02/03/2021',
-            stripe_customer_id: 'cus_J632IbQFZfXXt5',
-            alert_threshold: 100,
-            product: undefined,
-            quantity: 0,
-            $set: undefined
-        })
-    }
-    testInvoiceAlerts()
+    // Paid invoices should be scoped to the current month
+    const today = new Date()
+    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const invoicePeriod = firstDayThisMonth.toLocaleDateString('en-GB')
+    expect(posthog.capture).toHaveBeenCalledWith('Paid Invoices', { amount: 0, period: invoicePeriod })
 })
