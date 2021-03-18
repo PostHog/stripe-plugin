@@ -115,7 +115,7 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
     cleanedPayments.forEach((payment) => {
         paymentsReceived += payment.amount_paid
     })
-
+    posthog.debug = true
     posthog.capture('Paid Invoices', {
         period: firstDayThisMonth.toLocaleDateString('en-GB'),
         amount: parseFloat((paymentsReceived / 100).toFixed(2))
@@ -125,10 +125,10 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
 async function runEveryMinute({ global, storage, cache }) {
     const ONE_HOUR = 1000 * 60 * 60 * 1
     // Run every one hour - Using runEveryMinute to run on setup
-    // const lastRun = await cache.get('_lastRun')
-    // if (lastRun && new Date().getTime() - Number(lastRun) < ONE_HOUR) {
-    //     return
-    // }
+    const lastRun = await cache.get('_lastRun')
+    if (lastRun && new Date().getTime() - Number(lastRun) < ONE_HOUR) {
+        return
+    }
 
     const customers = await fetchAllCustomers(global.defaultHeaders)
 
