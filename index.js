@@ -25,6 +25,8 @@ async function setupPlugin({ config, global, storage }) {
     global.onlyRegisterNewCustomers = config.onlyRegisterNewCustomers === 'Yes'
     global.notifyUpcomingInvoices = config.notifyUpcomingInvoices === 'Yes'
 
+    global.capturePaidInvoices = config.capturePaidInvoices === 'Yes'
+
     const authResponse = await fetchWithRetry('https://api.stripe.com/v1/customers?limit=1', global.defaultHeaders)
 
     if (!statusOk(authResponse)) {
@@ -61,6 +63,63 @@ async function fetchAllCustomers(defaultHeaders) {
     }
 
     return customers
+}
+
+async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
+    let payments = []
+
+    let paginationParam = ''
+    let invoiceJson = { has_more: true }
+
+    const today = new Date()
+    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const firstDayNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+
+    const dateParam = `created[gte]=${parseInt((firstDayThisMonth.getTime() / 1000).toFixed(0))}&created[lt]=${parseInt(
+        (firstDayNextMonth / 1000).toFixed(0)
+    )}`
+    const statusParam = '&status=paid'
+
+    while (invoiceJson.has_more) {
+        const paymentResponse = await fetchWithRetry(
+            `https://api.stripe.com/v1/invoices?limit=100&${dateParam}${statusParam}${paginationParam}`,
+            defaultHeaders
+        )
+        invoiceJson = await paymentResponse.json()
+        const newPayments = invoiceJson.data
+
+        if (!newPayments) {
+            break
+        }
+
+        const lastObjectId = newPayments[newPayments.length - 1].id
+        paginationParam = `&starting_after=${lastObjectId}`
+        payments = [...payments, ...newPayments]
+    }
+
+    const cleanedPayments = []
+    payments.forEach((payment) => {
+        if (!customerIgnoreRegex || !customerIgnoreRegex.test(payment.customer_email)) {
+            cleanedPayments.push({
+                email: payment.customer_email,
+                amount_due: payment.amount_due,
+                amount_paid: payment.amount_paid,
+                status: payment.status,
+                created: new Date(payment.created * 1000).toLocaleDateString('en-GB'),
+                currency: payment.currency
+            })
+        }
+    })
+
+    let paymentsReceived = 0.0
+    cleanedPayments.forEach((payment) => {
+        paymentsReceived += payment.amount_paid
+    })
+
+    posthog.capture('Paid Invoices', {
+        period: firstDayThisMonth.toLocaleDateString('en-GB'),
+        amount: parseFloat((paymentsReceived / 100).toFixed(2))
+    })
 }
 
 async function runEveryMinute({ global, storage, cache }) {
@@ -174,6 +233,10 @@ async function runEveryMinute({ global, storage, cache }) {
     }
 
     logAggregatedInvoices(invoicesByProduct)
+
+    if (global.capturePaidInvoices) {
+        await capturePaidInvoices(global.defaultHeaders, global.customerIgnoreRegex)
+    }
 
     await cache.set('_lastRun', new Date().getTime())
 }
