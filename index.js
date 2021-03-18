@@ -25,6 +25,8 @@ async function setupPlugin({ config, global, storage }) {
     global.onlyRegisterNewCustomers = config.onlyRegisterNewCustomers === 'Yes'
     global.notifyUpcomingInvoices = config.notifyUpcomingInvoices === 'Yes'
 
+    global.capturePaidInvoices = config.capturePaidInvoices === 'Yes'
+
     const authResponse = await fetchWithRetry('https://api.stripe.com/v1/customers?limit=1', global.defaultHeaders)
 
     if (!statusOk(authResponse)) {
@@ -61,6 +63,51 @@ async function fetchAllCustomers(defaultHeaders) {
     }
 
     return customers
+}
+
+async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
+    let invoices = []
+
+    let paginationParam = ''
+    let invoiceJson = { has_more: true }
+
+    const today = new Date()
+    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const firstDayNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+
+    const dateParam = `created[gte]=${parseInt((firstDayThisMonth.getTime() / 1000).toFixed(0))}&created[lt]=${parseInt(
+        (firstDayNextMonth / 1000).toFixed(0)
+    )}`
+    const statusParam = '&status=paid'
+
+    while (invoiceJson.has_more) {
+        const invoiceResponse = await fetchWithRetry(
+            `https://api.stripe.com/v1/invoices?limit=100&${dateParam}${statusParam}${paginationParam}`,
+            defaultHeaders
+        )
+        invoiceJson = await invoiceResponse.json()
+        const newPayments = invoiceJson.data
+
+        if (!newPayments) {
+            break
+        }
+
+        const lastObjectId = newPayments[newPayments.length - 1].id
+        paginationParam = `&starting_after=${lastObjectId}`
+        invoices = [...invoices, ...newPayments]
+    }
+
+    let paymentsReceived = 0.0
+    invoices.forEach((payment) => {
+        if (!customerIgnoreRegex || !customerIgnoreRegex.test(payment.customer_email)) {
+            paymentsReceived += payment.amount_paid
+        }
+    })
+
+    posthog.capture('Paid Invoices', {
+        period: firstDayThisMonth.toLocaleDateString('en-GB'),
+        amount: parseFloat((paymentsReceived / 100).toFixed(2))
+    })
 }
 
 async function runEveryMinute({ global, storage, cache }) {
@@ -174,6 +221,10 @@ async function runEveryMinute({ global, storage, cache }) {
     }
 
     logAggregatedInvoices(invoicesByProduct)
+
+    if (global.capturePaidInvoices) {
+        await capturePaidInvoices(global.defaultHeaders, global.customerIgnoreRegex)
+    }
 
     await cache.set('_lastRun', new Date().getTime())
 }

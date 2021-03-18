@@ -54,6 +54,14 @@
             "type": "string",
             "default": "100",
             "required": false
+        },
+        {
+            "key": "capturePaidInvoices",
+            "hint": "If enabled, will tally all paid invoices created in the current month and capture as an event.",
+            "name": "Capture paid invoices:",
+            "type": "string",
+            "default": "Yes",
+            "required": false
         }
     ]
 }

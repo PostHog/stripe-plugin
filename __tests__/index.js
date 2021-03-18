@@ -33,7 +33,8 @@ beforeEach(() => {
             onlyRegisterNewCustomers: 'Yes',
             notifyUpcomingInvoices: 'Yes',
             invoiceNotificationPeriod: '20000',
-            invoiceAmountThreshold: '100'
+            invoiceAmountThreshold: '100',
+            capturePaidInvoices: 'Yes'
         },
         global: global,
         storage: storage,
@@ -59,7 +60,9 @@ test('runEveryMinute', async () => {
     expect(fetch).toHaveBeenCalledTimes(0)
 
     await runEveryMinute(getMeta())
-    expect(posthog.capture).toHaveBeenCalledTimes(4)
+
+    expect(posthog.capture).toHaveBeenCalledTimes(5)
+
     expect(posthog.capture).toHaveBeenCalledWith('Upcoming Invoice', {
         distinct_id: 'cus_J632IbQFZfXXt5',
         amount: 150,
@@ -79,4 +82,10 @@ test('runEveryMinute', async () => {
         quantity: 0,
         $set: undefined
     })
+
+    // Paid invoices should be scoped to the current month
+    const today = new Date()
+    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const invoicePeriod = firstDayThisMonth.toLocaleDateString('en-GB')
+    expect(posthog.capture).toHaveBeenCalledWith('Paid Invoices', { amount: 0, period: invoicePeriod })
 })
