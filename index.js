@@ -81,11 +81,11 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
     const statusParam = '&status=paid'
 
     while (invoiceJson.has_more) {
-        const paymentResponse = await fetchWithRetry(
+        const invoiceResponse = await fetchWithRetry(
             `https://api.stripe.com/v1/invoices?limit=100&${dateParam}${statusParam}${paginationParam}`,
             defaultHeaders
         )
-        invoiceJson = await paymentResponse.json()
+        invoiceJson = await invoiceResponse.json()
         const newPayments = invoiceJson.data
 
         if (!newPayments) {
