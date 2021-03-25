@@ -62,6 +62,14 @@
             "type": "string",
             "default": "Yes",
             "required": false
+        },
+        {
+            "key": "backfillStartDate",
+            "hint": "If set, old invoices will be summed and back filled to their respective months. YYYY-MM-DD format",
+            "name": "Backfill Invoice Start Date",
+            "type": "string",
+            "default": "2019-01-01",
+            "required": false
         }
     ]
 }

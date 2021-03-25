@@ -15,6 +15,8 @@ async function setupPlugin({ config, global, storage }) {
         throw new Error('Threshold specified is not a number.')
     }
 
+    global.backfillStartDate = config.backfillStartDate ? new Date(config.backfillStartDate) : new Date('2019-01-01')
+
     global.defaultHeaders = {
         headers: {
             Authorization: `Bearer ${config.stripeApiKey}`,
@@ -65,17 +67,17 @@ async function fetchAllCustomers(defaultHeaders) {
     return customers
 }
 
-async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
+async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex, backfillDate) {
     let invoices = []
 
     let paginationParam = ''
     let invoiceJson = { has_more: true }
 
     const today = new Date()
-    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const queryStart = backfillDate ? backfillDate : new Date(today.getFullYear(), today.getMonth(), 1)
     const firstDayNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
 
-    const dateParam = `created[gte]=${parseInt((firstDayThisMonth.getTime() / 1000).toFixed(0))}&created[lt]=${parseInt(
+    const dateParam = `created[gte]=${parseInt((queryStart.getTime() / 1000).toFixed(0))}&created[lt]=${parseInt(
         (firstDayNextMonth / 1000).toFixed(0)
     )}`
     const statusParam = '&status=paid'
@@ -98,25 +100,79 @@ async function capturePaidInvoices(defaultHeaders, customerIgnoreRegex) {
     }
 
     let paymentsReceived = 0.0
-    invoices.forEach((payment) => {
-        if (!customerIgnoreRegex || !customerIgnoreRegex.test(payment.customer_email)) {
-            paymentsReceived += payment.amount_paid
+    const paidSumByMonth = {}
+    console.log(`processing: ${invoices.length} invoices`)
+    invoices.forEach((invoice) => {
+        if (!customerIgnoreRegex || !customerIgnoreRegex.test(invoice.customer_email)) {
+            const createDate = new Date(invoice.created * 1000)
+            const key = `${createDate.getMonth()}-${createDate.getFullYear()}`
+            // console.log('here')
+            if (key in paidSumByMonth) {
+                paidSumByMonth[key].invoices += 1
+                paidSumByMonth[key].total += invoice.amount_paid
+                paidSumByMonth[key]['eventDt'] = new Date(createDate.getFullYear(), createDate.getMonth(), 2)
+            } else {
+                paidSumByMonth[key] = {}
+                paidSumByMonth[key]['invoices'] = 1
+                paidSumByMonth[key]['total'] = invoice.amount_paid
+                paidSumByMonth[key]['eventDt'] = new Date(createDate.getFullYear(), createDate.getMonth(), 2)
+            }
         }
     })
 
-    posthog.capture('Paid Invoices', {
-        period: firstDayThisMonth.toLocaleDateString('en-GB'),
-        amount: parseFloat((paymentsReceived / 100).toFixed(2))
-    })
+    console.log(paidSumByMonth)
+    console.log(paymentsReceived)
+
+    if (backfillDate) {
+        console.log('going to go through the dict and log each one with a timestamp, set prop backfilled = true')
+
+        Object.values(paidSumByMonth).forEach((summary) => {
+            console.log(summary)
+            console.log(summary.eventDt.getTime())
+            console.log(summary.eventDt.toDateString())
+            posthog.capture('Paid Invoices', {
+                period: summary.eventDt.toDateString(),
+                amount: parseFloat((summary.total / 100).toFixed(2)),
+                $timestamp: summary.eventDt,
+                $time: summary.eventDt,
+                backfilled: true
+            })
+            console.log('sent')
+        })
+    } else {
+        console.log('going to do a regular send without timestamp or additional prop')
+        // posthog.capture('Paid Invoices', {
+        //     period: firstDayThisMonth.toLocaleDateString('en-GB'),
+        //     amount: parseFloat((paymentsReceived / 100).toFixed(2)),
+        // })
+    }
+    return
+
+    // posthog.capture('Paid Invoices', {
+    //     period: firstDayThisMonth.toLocaleDateString('en-GB'),
+    //     amount: parseFloat((paymentsReceived / 100).toFixed(2)),
+    //     $timestamp: backfillDate ? backfillDate
+    // })
 }
 
 async function runEveryMinute({ global, storage, cache }) {
+    console.log('startingg')
+    if (global.capturePaidInvoices) {
+        console.log('going in')
+        await capturePaidInvoices(global.defaultHeaders, global.customerIgnoreRegex, global.backfillStartDate)
+    }
+
+    return
     const ONE_HOUR = 1000 * 60 * 60 * 1
     // Run every one hour - Using runEveryMinute to run on setup
     const lastRun = await cache.get('_lastRun')
     if (lastRun && new Date().getTime() - Number(lastRun) < ONE_HOUR) {
-        return
+        // return
     }
+
+    //     posthog.capture('Test 003', {
+    //     $timestamp: global.backfillDate
+    // })
 
     const customers = await fetchAllCustomers(global.defaultHeaders)
 
@@ -183,6 +239,7 @@ async function runEveryMinute({ global, storage, cache }) {
                     const eventProps = {
                         amount: invoiceData.amount_due,
                         invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
+                        invoice_date: new Date(upcomingInvoiceDate).toLocaleDateString('en-GB'),
                         product: invoiceData.product,
                         quantity: invoiceData.quantity,
                         stripe_customer_id: customer.id,
@@ -223,7 +280,7 @@ async function runEveryMinute({ global, storage, cache }) {
     logAggregatedInvoices(invoicesByProduct)
 
     if (global.capturePaidInvoices) {
-        await capturePaidInvoices(global.defaultHeaders, global.customerIgnoreRegex)
+        await capturePaidInvoices(global.defaultHeaders, global.customerIgnoreRegex, global.backfillStartDate)
     }
 
     await cache.set('_lastRun', new Date().getTime())
