@@ -1,0 +1,18 @@
+[
+    {
+        "id": "01823f10-a0c9-0000-73c5-19499a02cb1c",
+        "type": "group",
+        "group_type_index": 0,
+        "group_key": "01823f10-a0c9-0000-73c5-19499a02cb1c",
+        "created_at": "2022-07-27T09:50:35.514000Z",
+        "properties": {}
+    },
+    {
+        "id": "somethingelse",
+        "type": "group",
+        "group_type_index": 1,
+        "group_key": "somethingelse",
+        "created_at": "2022-07-19T08:25:33.991000Z",
+        "properties": {}
+    }
+]

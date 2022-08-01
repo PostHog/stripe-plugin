@@ -14,54 +14,26 @@
             "required": true
         },
         {
-            "key": "onlyRegisterNewCustomers",
-            "hint": "Selecting 'Yes' will capture only new customers, while 'No' will always pull and update **all** your Stripe customers.",
-            "name": "Only register new customers?",
+            "key": "groupType",
+            "hint": "PostHog group type (ie 'organization' or 'company') of the group that you want to set stripe properties on.",
+            "name": "PostHog group type",
+            "type": "string",
+            "required": false
+        },
+        {
+            "key": "groupTypeIndex",
+            "hint": "PostHog group type index (number between 0-4) of the group that you want to set stripe properties on. You can find this by going to /api/groups_types/",
+            "name": "PostHog group type",
+            "type": "string",
+            "required": false
+        },
+        {
+            "key": "saveUsersIfNotMatched",
+            "name": "Save invoices and events if we can't find the user in PostHog?",
             "type": "choice",
             "choices": ["Yes", "No"],
-            "default": "Yes",
-            "required": false
-        },
-        {
-            "key": "customerIgnoreRegex",
-            "hint": "Specify a Regex for which customers to ignore based on their email (e.g. your own team).",
-            "name": "Customer Ignore Regex",
-            "type": "string",
-            "default": "",
-            "required": false
-        },
-        {
-            "key": "notifyUpcomingInvoices",
-            "hint": "",
-            "name": "Do you want to be notified of upcoming invoices?",
-            "type": "choice",
-            "choices": ["Yes", "No"],
-            "default": "Yes",
-            "required": false
-        },
-        {
-            "key": "invoiceNotificationPeriod",
-            "hint": "Default: 10 days",
-            "name": "How many days before should we notify you of upcoming invoices?",
-            "type": "string",
-            "default": "10",
-            "required": false
-        },
-        {
-            "key": "invoiceAmountThreshold",
-            "hint": "An absolute value applied to whatever currency you use - the plugin does not convert between currencies.",
-            "name": "Notify me of invoice amounts greater than:",
-            "type": "string",
-            "default": "100",
-            "required": false
-        },
-        {
-            "key": "capturePaidInvoices",
-            "hint": "If enabled, will tally all paid invoices created in the current month and capture as an event.",
-            "name": "Capture paid invoices:",
-            "type": "string",
-            "default": "Yes",
-            "required": false
+            "default": "No",
+            "hint": "If there is a user in Stripe that we can't find in PostHog, should we still send events?"
         }
     ]
 }
