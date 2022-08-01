@@ -217,7 +217,7 @@ test('run with grouptypeindex set', async () => {
     expect(posthog.api.get).toHaveBeenCalledTimes(4)
 })
 
-test("Don't save users option", async () => {
+test("Don't save users if not matched option", async () => {
     global.saveUsersIfNotMatched = false
 
     global.posthog['api'] = {
@@ -235,4 +235,68 @@ test("Don't save users option", async () => {
     expect(fetch).toHaveBeenCalledTimes(1)
     expect(posthog.api.get).toHaveBeenCalledTimes(1)
     expect(posthog.capture).toHaveBeenCalledTimes(0)
+})
+
+test('save users if not matched option', async () => {
+    global.saveUsersIfNotMatched = true
+
+    global.posthog['api'] = {
+        get: jest.fn((url) => ({
+            json: async () => {
+                return { results: [] }
+            }
+        }))
+    }
+    expect(fetch).toHaveBeenCalledTimes(0)
+    expect(posthog.capture).toHaveBeenCalledTimes(0)
+
+    await runEveryMinute(meta)
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(posthog.api.get).toHaveBeenCalledTimes(1)
+    expect(posthog.capture).toHaveBeenCalledTimes(3)
+})
+
+test('Use distinct_id from meta', async () => {
+    global.saveUsersIfNotMatched = false
+
+    global.posthog['api'] = {
+        get: jest.fn((url) => ({
+            json: async () => {
+                return { results: [] }
+            }
+        }))
+    }
+
+    global.fetch = jest.fn(async (url) => ({
+        json: async () => {
+            if (url.includes('/invoices')) {
+                if (url.includes('starting_after')) {
+                    return require('./__tests__/invoice_page2.json')
+                } else {
+                    let dd = require('./__tests__/invoice_page1.json')
+                    dd['data'][0]['customer']['metadata'] = {
+                        posthog_distinct_id: 'test_metadata'
+                    }
+                    return dd
+                }
+            }
+        },
+        status: 200
+    }))
+
+    expect(fetch).toHaveBeenCalledTimes(0)
+    expect(posthog.capture).toHaveBeenCalledTimes(0)
+
+    await runEveryMinute(meta)
+
+    expect(posthog.capture).toHaveBeenNthCalledWith(1, 'Stripe Customer Created', {
+        distinct_id: 'test_metadata',
+        timestamp: '2021-09-27T15:59:53.000Z',
+        stripe_customer_id: 'cus_stripeid1'
+    })
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(posthog.api.get).toHaveBeenCalledTimes(0)
+    expect(posthog.capture).toHaveBeenCalledTimes(3)
 })

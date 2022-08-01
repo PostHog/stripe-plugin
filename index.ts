@@ -122,30 +122,34 @@ async function getGroupTypeKey(person_id, global) {
 async function getOrSaveCustomer(invoice, customer, storage, global) {
     let fromStorage = await storage.get(`customer_${customer.id}`)
     if (!fromStorage) {
-        const req = await posthog.api.get(`/api/projects/@current/persons/?email=${customer.email}`)
-        const posthogPerson = await req.json()
         fromStorage = { invoices: [] }
-        if (!posthogPerson.results) {
-            console.warn("Can't reach PostHog to find persons", posthogPerson)
-            if (!global.saveUsersIfNotMatched) {
-                return
-            }
-        } else if (posthogPerson.results.length === 0) {
-            console.warn(`Can't find ${customer.email} in PostHog`)
-            if (!global.saveUsersIfNotMatched) {
-                return
-            }
-            fromStorage['distinct_id'] = customer.email
+        if (customer.metadata?.posthog_distinct_id) {
+            fromStorage['distinct_id'] = customer.metadata.posthog_distinct_id
         } else {
-            if (posthogPerson.results.length > 1) {
-                console.warn(`Found multiple results for ${customer.email} in PostHog. Using first one.`)
+            const req = await posthog.api.get(`/api/projects/@current/persons/?email=${customer.email}`)
+            const posthogPerson = await req.json()
+            if (!posthogPerson.results) {
+                console.warn("Can't reach PostHog to find persons", posthogPerson)
+                if (!global.saveUsersIfNotMatched) {
+                    return
+                }
+            } else if (posthogPerson.results.length === 0) {
+                console.warn(`Can't find ${customer.email} in PostHog`)
+                if (!global.saveUsersIfNotMatched) {
+                    return
+                }
+                fromStorage['distinct_id'] = customer.email
+            } else {
+                if (posthogPerson.results.length > 1) {
+                    console.warn(`Found multiple results for ${customer.email} in PostHog. Using first one.`)
+                }
+                fromStorage['distinct_id'] = posthogPerson.results[0]['distinct_ids'][0]
+                fromStorage['person_id'] = posthogPerson.results[0]['id']
+                console.log(global.groupType)
             }
-            fromStorage['distinct_id'] = posthogPerson.results[0]['distinct_ids'][0]
-            fromStorage['person_id'] = posthogPerson.results[0]['id']
-            console.log(global.groupType)
-            if (global.groupType) {
-                fromStorage['group_key'] = await getGroupTypeKey(fromStorage.person_id, global)
-            }
+        }
+        if (global.groupType) {
+            fromStorage['group_key'] = await getGroupTypeKey(fromStorage.person_id, global)
         }
 
         posthog.capture('Stripe Customer Created', {
