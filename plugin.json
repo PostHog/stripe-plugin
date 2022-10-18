@@ -2,7 +2,7 @@
     "name": "Stripe Plugin",
     "url": "https://github.com/PostHog/stripe-plugin",
     "description": "Get customer and invoice data from Stripe into PostHog.",
-    "main": "index.js",
+    "main": "index.ts",
     "config": [
         {
             "key": "stripeApiKey",

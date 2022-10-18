@@ -1,6 +1,6 @@
 {
     "name": "stripe-plugin",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Get customer and invoice data from Stripe into PostHog.",
     "main": "index.ts",
     "repository": {
