@@ -42,14 +42,16 @@ export const jobs = {
     }
 }
 
-async function sendGroupEvent(invoice, customer, spent_last_month, spent_total, global) {
+async function sendGroupEvent(invoice, customer, due_last_month, due_total, paid_last_month, paid_total, global) {
     posthog.capture('$groupidentify', {
         distinct_id: customer.distinct_id,
         $group_type: global.groupType,
         $group_key: customer.group_key,
         $group_set: {
-            stripe_spent_last_month: spent_last_month,
-            stripe_spent_total: spent_total,
+            stripe_due_last_month: due_last_month,
+            stripe_due_total: due_total,
+            stripe_paid_last_month: paid_last_month,
+            stripe_paid_total: paid_total,
             ...(invoice.subscription
                 ? {
                       stripe_subscription_status: invoice.subscription.status,
@@ -61,35 +63,46 @@ async function sendGroupEvent(invoice, customer, spent_last_month, spent_total, 
     })
 }
 
-async function sendInvoiceEvent(invoice, customer, global, storage, groupAddition) {
+function last_month(invoices, key) {
     const today = new Date()
     const firstDayThisMonth = Math.floor(new Date(today.getFullYear(), today.getMonth(), 1) / 1000)
     const firstDayNextMonth = Math.floor(new Date(today.getFullYear(), today.getMonth() + 1, 1) / 1000)
-
-    const spent_last_month = customer.invoices
+    return invoices
         .filter(({ period_end }) => {
             return period_end > firstDayThisMonth && period_end < firstDayNextMonth
         })
-        .map(({ amount_paid }) => amount_paid)
+        .map((invoice) => invoice[key])
         .reduce((prev, cur) => prev + cur, 0)
+}
 
-    const spent_total = customer.invoices.reduce((prev, cur) => prev.amount_paid + cur.amount_paid, { amount_paid: 0 })
+async function sendInvoiceEvent(invoice, customer, global, storage, groupAddition) {
+    const paid_last_month = last_month(customer.invoices, 'amount_paid')
+    const paid_total = customer.invoices.reduce((prev, cur) => prev.amount_paid + cur.amount_paid, { amount_paid: 0 })
+
+    const due_last_month = last_month(customer.invoices, 'amount_paid')
+    const due_total = customer.invoices.reduce((prev, cur) => prev.amount_paid + cur.amount_paid, { amount_paid: 0 })
+
     posthog.capture('Stripe Invoice Paid', {
         distinct_id: customer.distinct_id,
         timestamp: toISOString(invoice.period_end),
         stripe_customer_id: invoice.customer.id,
         stripe_amount_paid: invoice.amount_paid / 100,
+        stripe_invoice_id: invoice.id,
+        stripe_amount_due: invoice.amount_due / 100,
         ...groupAddition,
         $set: {
-            stripe_spent_last_month: spent_last_month,
-            stripe_spent_total: spent_total,
-            stripe_subscription_status: invoice.subscription?.status
+            stripe_due_last_month: due_last_month,
+            stripe_due_total: due_total,
+            stripe_paid_last_month: paid_last_month,
+            stripe_paid_total: paid_total,
+            stripe_subscription_status: invoice.subscription?.status,
+            stripe_customer_id: invoice.subscription?.customer
         }
     })
     await storage.set(`invoice_${invoice.id}`, 1)
 
     if (global.groupType) {
-        sendGroupEvent(invoice, customer, spent_last_month, spent_total, global)
+        sendGroupEvent(invoice, customer, due_last_month, due_total, paid_last_month, paid_total, global)
     }
 }
 
@@ -106,7 +119,8 @@ async function sendSubscriptionEvent(subscription, customer, storage, groupAddit
         ...groupAddition,
         $set: {
             stripe_subscription_date: new Date(subscription.created * 1000).toISOString(),
-            stripe_product_name: subscription.plan?.product?.name
+            stripe_product_name: subscription.plan?.product?.name,
+            stripe_customer_id: subscription.customer
         }
     })
 
@@ -114,9 +128,18 @@ async function sendSubscriptionEvent(subscription, customer, storage, groupAddit
 }
 
 async function getGroupTypeKey(person_id, global) {
+    if (!person_id || person_id === 'undefined') {
+        console.warn(`Couldn't find group for user ${person_id}`)
+        return
+    }
     const req = await posthog.api.get(`/api/projects/@current/groups/related?id=${person_id}`)
     const groups = await req.json()
-    return groups.filter((group) => group.group_type_index == global.groupTypeIndex)[0].group_key
+    const group = groups.filter((group) => group.group_type_index == global.groupTypeIndex)
+    if (!group || group.length === 0) {
+        console.warn(`Couldn't find group for user ${person_id}`)
+        return undefined
+    }
+    return group[0].group_key
 }
 
 async function getOrSaveCustomer(invoice, customer, storage, global) {
@@ -125,6 +148,12 @@ async function getOrSaveCustomer(invoice, customer, storage, global) {
         fromStorage = { invoices: [] }
         if (customer.metadata?.posthog_distinct_id) {
             fromStorage['distinct_id'] = customer.metadata.posthog_distinct_id
+            const getPersonid = await posthog.api.get(
+                `/api/projects/@current/persons/?distinct_id=${fromStorage['distinct_id']}`
+            )
+            if (getPersonid.results?.length > 0) {
+                fromStorage['person_id'] = getPersonid.results[0]['id']
+            }
         } else {
             const req = await posthog.api.get(`/api/projects/@current/persons/?email=${customer.email}`)
             const posthogPerson = await req.json()
@@ -134,7 +163,7 @@ async function getOrSaveCustomer(invoice, customer, storage, global) {
                     return
                 }
             } else if (posthogPerson.results.length === 0) {
-                console.warn(`Can't find ${customer.email} in PostHog`)
+                console.warn(`Can't find ${customer.email} in PostHog.`)
                 if (!global.saveUsersIfNotMatched) {
                     return
                 }
@@ -145,11 +174,12 @@ async function getOrSaveCustomer(invoice, customer, storage, global) {
                 }
                 fromStorage['distinct_id'] = posthogPerson.results[0]['distinct_ids'][0]
                 fromStorage['person_id'] = posthogPerson.results[0]['id']
-                console.log(global.groupType)
+                console.log('yes', posthogPerson)
             }
         }
         if (global.groupType) {
             fromStorage['group_key'] = await getGroupTypeKey(fromStorage.person_id, global)
+            console.log('okok', fromStorage)
         }
 
         posthog.capture('Stripe Customer Created', {
@@ -178,7 +208,10 @@ async function asyncFilter(arr, callback) {
 
 export async function runEveryMinute({ storage, jobs, global }: Meta) {
     const TEN_MINUTES = 1000 * 60 * 10
-    const paginationParam = await storage.get('paginationParam', '')
+    let paginationParam = await storage.get('paginationParam', '')
+    if (!paginationParam) {
+        paginationParam = ''
+    }
     const invoiceResponse = await fetchWithRetry(
         `https://api.stripe.com/v1/invoices?limit=100&status=paid&expand[]=data.customer&expand[]=data.subscription.plan.product${paginationParam}`,
         global.defaultHeaders
@@ -206,6 +239,7 @@ export async function runEveryMinute({ storage, jobs, global }: Meta) {
         await storage.set('paginationParam', `&starting_after=${lastObjectId}`)
     } else {
         console.log(`Paginated all pages, starting from scratch.`)
+        await storage.set('paginationParam', false)
     }
 
     return

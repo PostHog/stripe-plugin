@@ -23,7 +23,7 @@ global.posthog = {
                 if (url.includes('/related')) {
                     return require('./__tests__/related_groups.json')
                 }
-                return { results: [{ distinct_ids: ['test_distinct_id'] }] }
+                return { results: [{ id: 'posthog-uuid', distinct_ids: ['test_distinct_id'] }] }
             }
         }))
     }
@@ -150,7 +150,8 @@ test('runEveryMinute', async () => {
         stripe_customer_id: 'cus_stripeid1',
         $set: {
             stripe_subscription_date: '2021-09-27T16:00:09.000Z',
-            stripe_product_name: 'posthog/license automated tests'
+            stripe_product_name: 'posthog/license automated tests',
+            stripe_customer_id: 'cus_stripeid1'
         }
     })
 
@@ -159,10 +160,15 @@ test('runEveryMinute', async () => {
         timestamp: '2022-07-27T16:00:09.000Z',
         stripe_customer_id: 'cus_stripeid1',
         stripe_amount_paid: 2000,
+        stripe_amount_due: 2000,
+        stripe_invoice_id: 'in_1LQCjqEuIatRXSdzeGJDxXm1',
         $set: {
             stripe_subscription_status: 'active',
-            stripe_spent_last_month: 2000,
-            stripe_spent_total: 2000
+            stripe_due_last_month: 2000,
+            stripe_due_total: 2000,
+            stripe_paid_last_month: 2000,
+            stripe_paid_total: 2000,
+            stripe_customer_id: 'cus_stripeid1'
         }
     })
 
@@ -171,6 +177,20 @@ test('runEveryMinute', async () => {
     expect(posthog.api.get).toHaveBeenCalledTimes(2)
     expect(posthog.capture).toHaveBeenCalledTimes(6)
     expect(fetch).toHaveBeenCalledTimes(3)
+
+    // Pretend we've gone all the way round
+    await storage.set('paginationParam', false)
+    await runEveryMinute(meta)
+
+    expect(fetch).toHaveBeenCalledTimes(4)
+    expect(fetch).toHaveBeenNthCalledWith(
+        4,
+        'https://api.stripe.com/v1/invoices?limit=100&status=paid&expand[]=data.customer&expand[]=data.subscription.plan.product',
+        {
+            headers: { Authorization: 'Bearer undefined', 'Content-Type': 'application/x-www-form-urlencoded' },
+            method: 'GET'
+        }
+    )
 })
 
 test('run with grouptypeindex set', async () => {
@@ -182,6 +202,7 @@ test('run with grouptypeindex set', async () => {
     await runEveryMinute(meta)
     await runEveryMinute(meta)
 
+    console.log('hiii', await storage.get('customer_cus_stripeid1'))
     expect(posthog.capture).toHaveBeenNthCalledWith(1, 'Stripe Customer Created', {
         distinct_id: 'test_distinct_id',
         timestamp: '2021-09-27T15:59:53.000Z',
@@ -196,7 +217,8 @@ test('run with grouptypeindex set', async () => {
         stripe_customer_id: 'cus_stripeid1',
         $set: {
             stripe_subscription_date: '2021-09-27T16:00:09.000Z',
-            stripe_product_name: 'posthog/license automated tests'
+            stripe_product_name: 'posthog/license automated tests',
+            stripe_customer_id: 'cus_stripeid1'
         },
         $groups: { organizations: '01823f10-a0c9-0000-73c5-19499a02cb1c' }
     })
@@ -207,8 +229,10 @@ test('run with grouptypeindex set', async () => {
         $group_key: '01823f10-a0c9-0000-73c5-19499a02cb1c',
         $group_set: {
             stripe_subscription_status: 'active',
-            stripe_spent_last_month: 2000,
-            stripe_spent_total: 2000,
+            stripe_due_last_month: 2000,
+            stripe_due_total: 2000,
+            stripe_paid_last_month: 2000,
+            stripe_paid_total: 2000,
             stripe_subscription_date: '2021-09-27T16:00:09.000Z',
             stripe_product_name: 'posthog/license automated tests'
         }
