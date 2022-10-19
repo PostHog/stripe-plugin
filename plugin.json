@@ -6,7 +6,7 @@
     "config": [
         {
             "key": "stripeApiKey",
-            "hint": "This can be a Restricted API key and only needs read access to Customers, Subscriptions, Plans, Usage Records, and Invoices.",
+            "hint": "This can be a Restricted API key and only needs read access to Customers, Products, Invoices, Subscriptions, and Usage Records.",
             "name": "Your Stripe API key",
             "type": "string",
             "default": "",
@@ -23,7 +23,7 @@
         {
             "key": "groupTypeIndex",
             "hint": "PostHog group type index (number between 0-4) of the group that you want to set stripe properties on. You can find this by going to /api/groups_types/",
-            "name": "PostHog group type",
+            "name": "PostHog group type index",
             "type": "string",
             "required": false
         },
