@@ -36,7 +36,7 @@ export const jobs = {
             const customer = await getOrSaveCustomer(invoice, invoice.customer, storage, global)
 
             if (customer || global.saveUsersIfNotMatched) {
-                const groupAddition = customer.group_key ? { $groups: { [global.groupType]: customer.group_key } } : {}
+                const groupAddition = customer?.group_key ? { $groups: { [global.groupType]: customer.group_key } } : {}
 
                 if (invoice.subscription) {
                     await sendSubscriptionEvent(invoice.subscription, customer, storage, groupAddition)
@@ -88,7 +88,7 @@ async function sendInvoiceEvent(invoice, customer, global, storage, groupAdditio
     const due_total = customer.invoices.reduce((prev, cur) => prev.amount_paid + cur.amount_paid, { amount_paid: 0 })
 
     posthog.capture('Stripe Invoice Paid', {
-        distinct_id: customer.distinct_id,
+        distinct_id: customer?.distinct_id,
         timestamp: toISOString(invoice.period_end),
         stripe_customer_id: invoice.customer.id,
         stripe_amount_paid: invoice.amount_paid / 100,
@@ -117,7 +117,7 @@ async function sendSubscriptionEvent(subscription, customer, storage, groupAddit
         return
     }
     posthog.capture('Stripe Customer Subscribed', {
-        distinct_id: customer.distinct_id,
+        distinct_id: customer?.distinct_id,
         timestamp: toISOString(subscription.created),
         stripe_customer_id: subscription.customer,
         stripe_product_name: subscription.plan?.product?.name,
