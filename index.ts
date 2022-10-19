@@ -28,6 +28,11 @@ export async function setupPlugin({ config, global, storage }) {
 export const jobs = {
     saveInvoices: async (invoices, { global, storage, cache }) => {
         for (const invoice of invoices) {
+            if (!invoice.customer) {
+                console.warn(`Invoice ${invoice.id} does not have a customer associated with it in Stripe, skipping...`)
+                continue
+            }
+
             const customer = await getOrSaveCustomer(invoice, invoice.customer, storage, global)
 
             if (customer || global.saveUsersIfNotMatched) {
@@ -155,6 +160,11 @@ async function getOrSaveCustomer(invoice, customer, storage, global) {
                 fromStorage['person_id'] = getPersonid.results[0]['id']
             }
         } else {
+            if (!customer.email) {
+                console.warn(`Customer ${customer.id} does not have an email associated with their account in Stripe`)
+                return null
+            }
+
             const req = await posthog.api.get(`/api/projects/@current/persons/?email=${customer.email}`)
             const posthogPerson = await req.json()
             if (!posthogPerson.results) {
