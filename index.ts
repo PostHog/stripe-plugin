@@ -25,24 +25,22 @@ export async function setupPlugin({ config, global, storage }) {
     }
 }
 
-export const jobs = {
-    saveInvoices: async (invoices, { global, storage, cache }) => {
-        for (const invoice of invoices) {
-            if (!invoice.customer) {
-                console.warn(`Invoice ${invoice.id} does not have a customer associated with it in Stripe, skipping...`)
-                continue
+const saveInvoices = async (invoices, { global, storage }: Meta) => {
+    for (const invoice of invoices) {
+        if (!invoice.customer) {
+            console.warn(`Invoice ${invoice.id} does not have a customer associated with it in Stripe, skipping...`)
+            continue
+        }
+
+        const customer = await getOrSaveCustomer(invoice, invoice.customer, storage, global)
+
+        if (customer || global.saveUsersIfNotMatched) {
+            const groupAddition = customer?.group_key ? { $groups: { [global.groupType]: customer.group_key } } : {}
+
+            if (invoice.subscription) {
+                await sendSubscriptionEvent(invoice.subscription, customer, storage, groupAddition)
             }
-
-            const customer = await getOrSaveCustomer(invoice, invoice.customer, storage, global)
-
-            if (customer || global.saveUsersIfNotMatched) {
-                const groupAddition = customer?.group_key ? { $groups: { [global.groupType]: customer.group_key } } : {}
-
-                if (invoice.subscription) {
-                    await sendSubscriptionEvent(invoice.subscription, customer, storage, groupAddition)
-                }
-                await sendInvoiceEvent(invoice, customer, global, storage, groupAddition)
-            }
+            await sendInvoiceEvent(invoice, customer, global, storage, groupAddition)
         }
     }
 }
@@ -216,8 +214,8 @@ async function asyncFilter(arr, callback) {
     )
 }
 
-export async function runEveryMinute({ storage, jobs, global }: Meta) {
-    const TEN_MINUTES = 1000 * 60 * 10
+export async function runEveryMinute(meta: Meta) {
+    const { storage, global } = meta
     let paginationParam = await storage.get('paginationParam', '')
     if (!paginationParam) {
         paginationParam = ''
@@ -240,7 +238,7 @@ export async function runEveryMinute({ storage, jobs, global }: Meta) {
 
     if (newInvoices.length > 0) {
         console.log(`Trying to save ${newInvoices.length} new invoices, pagination "${paginationParam}"`)
-        await jobs.saveInvoices(newInvoices).runNow()
+        await saveInvoices(newInvoices, meta)
     } else {
         console.log(`Page has no unseen invoices, pagination ${paginationParam}`)
     }
