@@ -3,6 +3,9 @@
     "version": "1.0.3",
     "description": "Get customer and invoice data from Stripe into PostHog.",
     "main": "index.ts",
+    "engines": {
+        "node": ">=18.0.0 <19.0.0"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/PostHog/stripe-plugin.git"
