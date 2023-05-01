@@ -321,6 +321,6 @@ test('Use distinct_id from meta', async () => {
     })
 
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(posthog.api.get).toHaveBeenCalledTimes(0)
+    expect(posthog.api.get).toHaveBeenCalledTimes(1)
     expect(posthog.capture).toHaveBeenCalledTimes(3)
 })
