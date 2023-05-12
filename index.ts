@@ -127,7 +127,8 @@ async function sendSubscriptionEvent(subscription, customer, storage, groupAddit
         }
     })
 
-    const id = customer?.id || subscription.id;
+    const id = customer?.id || subscription.id
+
     await storage.set(`subscription_${id}`, true)
 }
 
