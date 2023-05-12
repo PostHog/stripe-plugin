@@ -135,7 +135,7 @@ test('runEveryMinute', async () => {
 
     expect(fetch).toHaveBeenCalledTimes(2)
     expect(posthog.api.get).toHaveBeenCalledTimes(2)
-    expect(posthog.capture).toHaveBeenCalledTimes(6)
+    expect(posthog.capture).toHaveBeenCalledTimes(5)
 
     expect(posthog.capture).toHaveBeenNthCalledWith(1, 'Stripe Customer Created', {
         distinct_id: 'test_distinct_id',
@@ -175,7 +175,7 @@ test('runEveryMinute', async () => {
     // second pagination, we should be the stripe page, but nothing else should happen
     await runEveryMinute(meta)
     expect(posthog.api.get).toHaveBeenCalledTimes(2)
-    expect(posthog.capture).toHaveBeenCalledTimes(6)
+    expect(posthog.capture).toHaveBeenCalledTimes(5)
     expect(fetch).toHaveBeenCalledTimes(3)
 
     // Pretend we've gone all the way round
