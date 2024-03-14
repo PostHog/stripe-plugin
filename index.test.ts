@@ -1,5 +1,5 @@
 import { getMeta, resetMeta } from '@posthog/plugin-scaffold/test/utils.js'
-import { setupPlugin, jobs, runEveryMinute } from './index'
+import { setupPlugin, jobs, runEveryMinute, INVOICE_EVENT_TIMESTAMP_TYPES } from './index'
 import 'jest'
 
 global.fetch = jest.fn(async (url) => ({
@@ -43,6 +43,7 @@ beforeEach(() => {
     posthog.api.get.mockClear()
     global.groupType = undefined
     global.groupTypeIndex = undefined
+    global.getInvoiceTimestamp = INVOICE_EVENT_TIMESTAMP_TYPES['Invoice Period End Date']
 
     mockStorage = new Map()
     storage = {

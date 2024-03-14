@@ -13,7 +13,7 @@ interface StoredInvoice {
 }
 
 // Keep this in sync with the `invoiceEventTimestamp` choices in config.json!
-const INVOICE_EVENT_TIMESTAMP_TYPES: Record<string, (invoice: StoredInvoice) => Date | undefined> = {
+export const INVOICE_EVENT_TIMESTAMP_TYPES: Record<string, (invoice: StoredInvoice) => Date | undefined> = {
     'Invoice Period End Date': (invoice) => new Date(invoice.period_end * 1000),
     'Invoice Payment Date': (invoice) => {
         // older invoices may have been written without state transition data
@@ -99,8 +99,8 @@ async function sendGroupEvent(invoice, customer, due_last_month, due_total, paid
 
 function last_month(global, invoices: StoredInvoice[], key) {
     const today = new Date()
-    const firstDayThisMonth = Math.floor(new Date(today.getFullYear(), today.getMonth(), 1) / 1000)
-    const firstDayNextMonth = Math.floor(new Date(today.getFullYear(), today.getMonth() + 1, 1) / 1000)
+    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const firstDayNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
     return invoices
         .filter((invoice) => {
             const timestamp = global.getInvoiceTimestamp(invoice)
