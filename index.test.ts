@@ -121,7 +121,11 @@ test('setupPlugin groupType and groupTypeIndex need to be set', async () => {
     await setupPlugin({ ...meta, config: { groupTypeIndex: 0, groupType: 'test' } })
 })
 
-test('runEveryMinute', async () => {
+test.each([
+    ['Invoice Period End Date', '2022-07-27T16:00:09.000Z'],
+    ['Invoice Payment Date','2022-07-27T17:28:20.000Z'],
+])('runEveryMinute', async (invoiceEventTimestampType, invoiceTimestamp) => {
+    global.getInvoiceTimestamp = INVOICE_EVENT_TIMESTAMP_TYPES[invoiceEventTimestampType]
     expect(fetch).toHaveBeenCalledTimes(0)
     expect(posthog.capture).toHaveBeenCalledTimes(0)
 
@@ -158,7 +162,7 @@ test('runEveryMinute', async () => {
 
     expect(posthog.capture).toHaveBeenNthCalledWith(3, 'Stripe Invoice Paid', {
         distinct_id: 'test_distinct_id',
-        timestamp: '2022-07-27T16:00:09.000Z',
+        timestamp: invoiceTimestamp,
         stripe_customer_id: 'cus_stripeid1',
         stripe_amount_paid: 2000,
         stripe_amount_due: 2000,
