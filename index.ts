@@ -1,11 +1,12 @@
 import { PluginEvent, Plugin, RetryError, CacheExtension, Meta, StorageExtension } from '@posthog/plugin-scaffold'
 
-// TODO: This should probably be split into read/write types to ensure all new
-// values are written correctly.
+// This interface is a subset of the API response type as documented here:
+// https://docs.stripe.com/api/invoices/object
 interface StoredInvoice {
     invoice_id: string
     amount_paid: number
     period_end: number
+    // older invoices may have been written without state transition data
     status_transitions?: {
         paid_at: number
     }
@@ -15,8 +16,7 @@ interface StoredInvoice {
 const INVOICE_EVENT_TIMESTAMP_TYPES: Record<string, (invoice: StoredInvoice) => Date | undefined> = {
     'Invoice Period End Date': (invoice) => new Date(invoice.period_end * 1000),
     'Invoice Payment Date': (invoice) => {
-        // XXX: `status_transitions` isn't available on older events, but should
-        // exist on new events moving forward.
+        // older invoices may have been written without state transition data
         const paid_at = invoice.status_transitions?.paid_at
         if (paid_at !== undefined) {
             return new Date(paid_at * 1000)
@@ -104,7 +104,11 @@ function last_month(global, invoices: StoredInvoice[], key) {
     return invoices
         .filter((invoice) => {
             const timestamp = global.getInvoiceTimestamp(invoice)
-            return timestamp !== undefined && timestamp > firstDayThisMonth && timestamp < firstDayNextMonth
+            return (
+                timestamp !== undefined  // older invoices may not have all timestamp data
+                && timestamp > firstDayThisMonth
+                && timestamp < firstDayNextMonth
+            )
         })
         .map((invoice) => invoice[key])
         .reduce((prev, cur) => prev + cur, 0)
