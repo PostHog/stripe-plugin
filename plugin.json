@@ -36,7 +36,7 @@
             "hint": "If there is a user in Stripe that we can't find in PostHog, should we still send events?"
         },
         {
-            "key": "invoiceTimestampType",
+            "key": "invoiceEventTimestamp",
             "name": "Timestamp to use for Invoice Paid events",
             "type": "choice",
             "choices": ["Invoice Period End Date", "Invoice Payment Date"],

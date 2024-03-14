@@ -1,5 +1,33 @@
 import { PluginEvent, Plugin, RetryError, CacheExtension, Meta, StorageExtension } from '@posthog/plugin-scaffold'
 
+// TODO: This should probably be split into read/write types to ensure all new
+// values are written correctly.
+interface StoredInvoice {
+    invoice_id: string
+    amount_paid: number
+    period_end: number
+    status_transitions?: {
+        paid_at: number
+    }
+}
+
+// Keep this in sync with the `invoiceEventTimestamp` choices in config.json!
+const INVOICE_EVENT_TIMESTAMP_TYPES: Record<string, (invoice: StoredInvoice) => Date | undefined> = {
+    'Invoice Period End Date': (invoice) => new Date(invoice.period_end * 1000),
+    'Invoice Payment Date': (invoice) => {
+        // XXX: `status_transitions` isn't available on older events, but should
+        // exist on new events moving forward.
+        const paid_at = invoice.status_transitions?.paid_at
+        if (paid_at !== undefined) {
+            return new Date(paid_at * 1000)
+        } else {
+            return undefined
+        }
+    }
+}
+
+const DEFAULT_INVOICE_EVENT_TIMESTAMP_TYPE = 'Invoice Period End Date'
+
 export async function setupPlugin({ config, global, storage }) {
     if ((config.groupType || config.groupTypeIndex > -1) && !(config.groupType && config.groupTypeIndex > -1)) {
         throw new Error('Both groupType and groupTypeIndex must be set.')
@@ -15,6 +43,9 @@ export async function setupPlugin({ config, global, storage }) {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
     }
+
+    global.getInvoiceTimestamp =
+        INVOICE_EVENT_TIMESTAMP_TYPES[config.invoiceTimestampType ?? DEFAULT_INVOICE_EVENT_TIMESTAMP_TYPE]
 
     const authResponse = await fetchWithRetry('https://api.stripe.com/v1/customers?limit=1', global.defaultHeaders)
 
@@ -66,28 +97,29 @@ async function sendGroupEvent(invoice, customer, due_last_month, due_total, paid
     })
 }
 
-function last_month(invoices, key) {
+function last_month(global, invoices: StoredInvoice[], key) {
     const today = new Date()
     const firstDayThisMonth = Math.floor(new Date(today.getFullYear(), today.getMonth(), 1) / 1000)
     const firstDayNextMonth = Math.floor(new Date(today.getFullYear(), today.getMonth() + 1, 1) / 1000)
     return invoices
-        .filter(({ period_end }) => {
-            return period_end > firstDayThisMonth && period_end < firstDayNextMonth
+        .filter((invoice) => {
+            const timestamp = global.getInvoiceTimestamp(invoice)
+            return timestamp !== undefined && timestamp > firstDayThisMonth && timestamp < firstDayNextMonth
         })
         .map((invoice) => invoice[key])
         .reduce((prev, cur) => prev + cur, 0)
 }
 
 async function sendInvoiceEvent(invoice, customer, global, storage, groupAddition) {
-    const paid_last_month = last_month(customer.invoices, 'amount_paid')
+    const paid_last_month = last_month(global, customer.invoices, 'amount_paid')
     const paid_total = customer.invoices.reduce((prev, cur) => prev.amount_paid + cur.amount_paid, { amount_paid: 0 })
 
-    const due_last_month = last_month(customer.invoices, 'amount_paid')
+    const due_last_month = last_month(global, customer.invoices, 'amount_paid')
     const due_total = customer.invoices.reduce((prev, cur) => prev.amount_paid + cur.amount_paid, { amount_paid: 0 })
 
     posthog.capture('Stripe Invoice Paid', {
         distinct_id: customer?.distinct_id,
-        timestamp: toISOString(invoice.period_end),
+        timestamp: global.getInvoiceTimestamp(invoice).toISOString(),
         stripe_customer_id: invoice.customer.id,
         stripe_amount_paid: invoice.amount_paid / 100,
         stripe_invoice_id: invoice.id,
@@ -200,8 +232,11 @@ async function getOrSaveCustomer(invoice, customer, storage, global) {
     fromStorage.invoices.push({
         invoice_id: invoice.id,
         amount_paid: invoice.amount_paid / 100,
-        period_end: invoice.period_end
-    })
+        period_end: invoice.period_end,
+        status_transitions: {
+            paid_at: invoice.status_transitions.paid_at
+        }
+    } as StoredInvoice)
 
     await storage.set(`customer_${customer.id}`, fromStorage)
     return fromStorage
