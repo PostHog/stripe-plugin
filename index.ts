@@ -163,7 +163,9 @@ async function sendSubscriptionEvent(subscription, customer, storage, groupAddit
         }
     })
 
-    await storage.set(`subscription_${customer.id}`, true)
+    const id = customer?.id || subscription.id
+
+    await storage.set(`subscription_${id}`, true)
 }
 
 async function getGroupTypeKey(person_id, global) {
