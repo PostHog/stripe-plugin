@@ -1,5 +1,9 @@
 # Stripe Plugin
 
+> [!WARNING]  
+> This plugin has been deprecated. You can use the [Data Warehouse integeration](https://posthog.com/docs/data-warehouse/setup/stripe) to sync all data reliably from Stripe into PostHog.
+
+
 Get customer and invoice data from Stripe into PostHog.
 
 This plugin will:
